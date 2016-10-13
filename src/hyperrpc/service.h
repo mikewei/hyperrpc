@@ -30,7 +30,7 @@
 #ifndef _HRPC_SERVICE_H
 #define _HRPC_SERVICE_H
 
-#include <ccbase/clousre.h>
+#include <ccbase/closure.h>
 
 namespace google {
 namespace protobuf {
@@ -54,19 +54,21 @@ enum Result
 class Service
 {
 public:
+  inline Service() {}
   virtual ~Service() {}
 
-  virtual const ServiceDescriptor* GetDescriptor() = 0;
+  virtual const ::google::protobuf::ServiceDescriptor* GetDescriptor() = 0;
 
-  virtual Result CallMethod(const MethodDescriptor* method,
-                          const Message* request,
-                          Message* response,
+  virtual void CallMethod(const ::google::protobuf::MethodDescriptor* method,
+                          const ::google::protobuf::Message* request,
+                          ::google::protobuf::Message* response,
                           ::ccb::ClosureFunc<void(Result)> done) = 0;
 
-  virtual const Message& GetRequestPrototype(
-                         const MethodDescriptor* method) const = 0;
-  virtual const Message& GetResponsePrototype(
-                         const MethodDescriptor* method) const = 0;
+  virtual const ::google::protobuf::Message& GetRequestPrototype(
+                const ::google::protobuf::MethodDescriptor* method) const = 0;
+  virtual const ::google::protobuf::Message& GetResponsePrototype(
+                const ::google::protobuf::MethodDescriptor* method) const = 0;
+
 private:
   // not copyable and movable
   Service(const Service&) = delete;

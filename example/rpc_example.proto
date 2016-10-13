@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package hrpc.example;
+
+message ProfileRequest
+{
+  uint64 user_id = 1;
+}
+
+message ProfileResponse
+{
+  uint64 user_id = 1;
+  string name = 2;
+  uint64 age = 3;
+}
+
+service ProfileService
+{
+  rpc GetProfile(ProfileResponse) returns(ProfileResponse);
+}

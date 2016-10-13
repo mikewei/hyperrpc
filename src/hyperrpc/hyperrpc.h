@@ -27,59 +27,30 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <vector>
-#include <memory>
-#include <utility>
-#include <google/protobuf/compiler/cpp/cpp_file.h>
-#include <google/protobuf/compiler/cpp/cpp_helpers.h>
-#include <google/protobuf/io/printer.h>
-#include <google/protobuf/io/zero_copy_stream.h>
-#include <google/protobuf/descriptor.pb.h>
-#include "hyperrpc/compiler/cpp_generator.h"
-#include "hyperrpc/compiler/cpp_file.h"
+#ifndef _HRPC_HYPERRPC_H
+#define _HRPC_HYPERRPC_H
+
+#include <ccbase/closure.h>
+
+namespace google {
+namespace protobuf {
+  class MethodDescriptor;
+  class Message;
+} // namespace protobuf
+} // namespace google
+
 
 namespace hrpc {
-namespace compiler {
 
-using namespace ::google::protobuf::compiler::cpp;
-
-CppGenerator::CppGenerator()
+class HyperRpc
 {
-}
+public:
+  void CallMethod(const ::google::protobuf::MethodDescriptor* method,
+                  const ::google::protobuf::Message* request,
+                  ::google::protobuf::Message* response,
+                  ::ccb::ClosureFunc<void(Result)> done);
+};
 
-CppGenerator::~CppGenerator()
-{
-}
-
-
-bool CppGenerator::Generate(const FileDescriptor* file,
-                            const std::string& parameter,
-                            GeneratorContext* generator_context,
-                            std::string* error) const
-{
-  std::vector<std::pair<std::string, std::string>> options;
-  ParseGeneratorParameter(parameter, &options);
-
-  CppFileGenerator file_generator(file);
-  std::string basename = StripProto(file->name());
-  basename.append(".hrpc.pb");
-
-  {
-    std::unique_ptr<io::ZeroCopyOutputStream> output(
-        generator_context->Open(basename + ".h"));
-    io::Printer printer(output.get(), '$');
-    file_generator.GenerateHeader(&printer);
-  }
-
-  {
-    std::unique_ptr<io::ZeroCopyOutputStream> output(
-        generator_context->Open(basename + ".cc"));
-    io::Printer printer(output.get(), '$');
-    file_generator.GenerateSource(&printer);
-  }
-
-  return true;
-}
-
-} // namespace compiler
 } // namespace hrpc
+
+#endif // _HRPC_HYPERRPC_H

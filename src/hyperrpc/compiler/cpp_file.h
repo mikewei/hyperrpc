@@ -70,6 +70,7 @@ private:
   void GenerateBottomHeaderGuard(io::Printer* printer,
                                  const string& filename_identifier);
   void GenerateLibraryIncludes(io::Printer* printer);
+  void GenerateForwardDeclarations(io::Printer* printer);
   void GenerateBuildDescriptors(io::Printer* printer);
   void GenerateServiceDefinitions(io::Printer* printer);
 

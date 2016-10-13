@@ -81,11 +81,11 @@ void CppServiceGenerator::GenerateDeclarations(io::Printer* printer)
     "// implements Service ----------------------------------------------\n"
     "\n"
     "const ::google::protobuf::ServiceDescriptor* GetDescriptor();\n"
-    "::hrpc::Result CallMethod(\n"
+    "void CallMethod(\n"
     "    const ::google::protobuf::MethodDescriptor* method,\n"
     "    const ::google::protobuf::Message* request,\n"
     "    ::google::protobuf::Message* response,\n"
-    "    ::google::protobuf::Closure* done);\n"
+    "    ::ccb::ClosureFunc<void(::hrpc::Result)> done);\n"
     "const ::google::protobuf::Message& GetRequestPrototype(\n"
     "    const ::google::protobuf::MethodDescriptor* method) const;\n"
     "const ::google::protobuf::Message& GetResponsePrototype(\n"
@@ -149,7 +149,7 @@ void CppServiceGenerator::GenerateMethodSignatures(bool is_virtual,
     sub_vars["virtual"] = (is_virtual ? "virtual " : "");
 
     printer->Print(sub_vars,
-      "$virtual$::hrpc::Result $name$(\n"
+      "$virtual$void $name$(\n"
       "    const $input_type$* request,\n"
       "    $output_type$* response,\n"
       "    ::ccb::ClosureFunc<void(::hrpc::Result)> done);\n");
@@ -309,7 +309,7 @@ void CppServiceGenerator::GenerateStubMethods(io::Printer* printer)
     sub_vars["output_type"] = ClassName(method->output_type(), true);
 
     printer->Print(sub_vars,
-      "::hrpc::Result $classname$_Stub::$name$(\n"
+      "void $classname$_Stub::$name$(\n"
       "    const $input_type$* request,\n"
       "    $output_type$* response,\n"
       "    ::ccb::ClosureFunc<void(::hrpc::Result)> done) {\n"
