@@ -9,6 +9,7 @@ cc_library(
     "-g",
     "-O2",
     "-Wall",
+    "-Wno-unused-result",
   ],
   linkopts = [
     "-lrt",
@@ -67,6 +68,7 @@ cc_hrpc_library(
   name = "rpc_example_proto",
   srcs = glob(["example/*.proto"]),
   deps = [],
+  linkstatic = 1,
 )
 
 cc_binary(

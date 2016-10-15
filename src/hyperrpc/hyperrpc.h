@@ -30,7 +30,11 @@
 #ifndef _HRPC_HYPERRPC_H
 #define _HRPC_HYPERRPC_H
 
+#include <memory>
+#include <vector>
 #include <ccbase/closure.h>
+#include <hyperudp/hyperudp.h>
+#include "hyperrpc/options.h"
 
 namespace google {
 namespace protobuf {
@@ -42,13 +46,86 @@ namespace protobuf {
 
 namespace hrpc {
 
+class Options;
+class Service;
+
+/* Log levels defined:
+ * kError, kWarning, kInfo, kDebug
+ */
+using ::hudp::LogLevel;
+using ::hudp::kError;
+using ::hudp::kWarning;
+using ::hudp::kInfo;
+using ::hudp::kDebug;
+
+/* IPv4 address
+ */
+using ::hudp::Addr;
+
+/* RPC result definition
+ */
+enum Result
+{
+  kSuccess = 0,
+  kNoRoute = 1,
+  kTimeout = 2,
+  kNotImpl = 3,
+};
+
+class OptionsBuilder : public ::hudp::OptionsBuilder
+{
+public:
+  OptionsBuilder();
+  ~OptionsBuilder();
+
+  /* Build the Options object
+   * @num     number of worker threads
+   *
+   * Build the Options object as Builder-Pattern
+   *
+   * @return  created Options object
+   */
+  Options Build();
+
+private:
+  // not copyable and movable
+  OptionsBuilder(const OptionsBuilder&) = delete;
+  void operator=(const OptionsBuilder&) = delete;
+  OptionsBuilder(OptionsBuilder&&) = delete;
+  void operator=(OptionsBuilder&&) = delete;
+
+  std::unique_ptr<Options> hrpc_opt_;
+};
+
 class HyperRpc
 {
 public:
+  using OnServiceRouting = ::ccb::ClosureFunc<bool(const std::string& svc,
+                                                   Addr* out)>;
+
+  HyperRpc();
+  HyperRpc(const Options& opt);
+  virtual ~HyperRpc();
+
+  bool InitAsClient(OnServiceRouting on_svc_routing);
+  bool InitAsServer(std::vector<Service*> services);
+  bool Start(const Addr& bind_local_addr);
+
+  // this method is called by generated service stub
   void CallMethod(const ::google::protobuf::MethodDescriptor* method,
                   const ::google::protobuf::Message* request,
                   ::google::protobuf::Message* response,
                   ::ccb::ClosureFunc<void(Result)> done);
+
+private:
+  // not copyable and movable
+  HyperRpc(const HyperRpc&) = delete;
+  void operator=(const HyperRpc&) = delete;
+  HyperRpc(HyperRpc&&) = delete;
+  void operator=(HyperRpc&&) = delete;
+
+  class Impl;
+  std::unique_ptr<HyperRpc::Impl> pimpl_;
 };
 
 } // namespace hrpc

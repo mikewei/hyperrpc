@@ -27,48 +27,44 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _HRPC_SERVICE_H
-#define _HRPC_SERVICE_H
-
-#include <hyperrpc/hyperrpc.h>
-
-namespace google {
-namespace protobuf {
-  class Descriptor;
-  class ServiceDescriptor;
-  class MethodDescriptor;
-  class Message;
-} // namespace protobuf
-} // namespace google
+#include <limits>
+#include <gflags/gflags.h>
+#include <hyperudp/options.h>
+#include <hyperudp/module_registry.h>
+#include "hyperrpc/hyperrpc.h"
 
 namespace hrpc {
 
-class Service
+#define GFLAGS_DEFINE(name, type, deft, desc) \
+  DEFINE_##type(hudp_##name, deft, desc)
+#define GFLAGS_DEFINE_U64(name, desc) GFLAGS_DEFINE(name, uint64, 0, desc)
+#define GFLAGS_DEFINE_STR(name, desc) GFLAGS_DEFINE(name, string, "", desc)
+#define GFLAGS_DEFINE_BOOL(name, desc) GFLAGS_DEFINE(name, bool, false, desc)
+
+#define GFLAGS_MAY_OVERRIDE(name, setter) do { \
+  google::CommandLineFlagInfo info; \
+  if (google::GetCommandLineFlagInfo("hrpc_" #name, &info) \
+      && !info.is_default) { \
+    setter(FLAGS_hudp_##name); \
+  } \
+} while(0)
+
+// WorkerGroup options
+//GFLAGS_DEFINE_U64(worker_num, "number of worker threads");
+
+OptionsBuilder::OptionsBuilder()
+  : hrpc_opt_(new Options)
 {
-public:
-  inline Service() {}
-  virtual ~Service() {}
+}
 
-  virtual const ::google::protobuf::ServiceDescriptor* GetDescriptor() = 0;
+OptionsBuilder::~OptionsBuilder()
+{
+}
 
-  virtual void CallMethod(const ::google::protobuf::MethodDescriptor* method,
-                          const ::google::protobuf::Message* request,
-                          ::google::protobuf::Message* response,
-                          ::ccb::ClosureFunc<void(Result)> done) = 0;
-
-  virtual const ::google::protobuf::Message& GetRequestPrototype(
-                const ::google::protobuf::MethodDescriptor* method) const = 0;
-  virtual const ::google::protobuf::Message& GetResponsePrototype(
-                const ::google::protobuf::MethodDescriptor* method) const = 0;
-
-private:
-  // not copyable and movable
-  Service(const Service&) = delete;
-  void operator=(const Service&) = delete;
-  Service(Service&&) = delete;
-  void operator=(Service&&) = delete;
-};
+Options OptionsBuilder::Build()
+{
+  static_cast<hudp::Options&>(*hrpc_opt_) = hudp::OptionsBuilder::Build();
+  return *hrpc_opt_;
+}
 
 } // namespace hrpc
-
-#endif // _HRPC_SERVICE_H

@@ -27,48 +27,46 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _HRPC_SERVICE_H
-#define _HRPC_SERVICE_H
-
-#include <hyperrpc/hyperrpc.h>
-
-namespace google {
-namespace protobuf {
-  class Descriptor;
-  class ServiceDescriptor;
-  class MethodDescriptor;
-  class Message;
-} // namespace protobuf
-} // namespace google
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <time.h>
+#include "hyperrpc/env.h"
 
 namespace hrpc {
 
-class Service
+static unsigned int GenerateSeed()
 {
-public:
-  inline Service() {}
-  virtual ~Service() {}
+  unsigned int seed = static_cast<unsigned int>(time(nullptr));
+  int f = open("/dev/urandom", O_RDONLY);
+  if (f >= 0) read(f, &seed, sizeof(seed));
+  return seed;
+}
 
-  virtual const ::google::protobuf::ServiceDescriptor* GetDescriptor() = 0;
+static unsigned int GetGlobalSeed()
+{
+  static unsigned int global_seed = GenerateSeed();
+  return global_seed;
+}
 
-  virtual void CallMethod(const ::google::protobuf::MethodDescriptor* method,
-                          const ::google::protobuf::Message* request,
-                          ::google::protobuf::Message* response,
-                          ::ccb::ClosureFunc<void(Result)> done) = 0;
+thread_local unsigned int Env::seed_tls = GetGlobalSeed();
 
-  virtual const ::google::protobuf::Message& GetRequestPrototype(
-                const ::google::protobuf::MethodDescriptor* method) const = 0;
-  virtual const ::google::protobuf::Message& GetResponsePrototype(
-                const ::google::protobuf::MethodDescriptor* method) const = 0;
+Env::Env(const Options& opt, ccb::TimerWheel* tw)
+  : BaseEnv(opt)
+  , timerw_(tw)
+{
+  Log(kDebug, "initialized seed = %u", seed_tls);
+}
 
-private:
-  // not copyable and movable
-  Service(const Service&) = delete;
-  void operator=(const Service&) = delete;
-  Service(Service&&) = delete;
-  void operator=(Service&&) = delete;
-};
+Env::~Env()
+{
+}
+
+uint32_t Env::Rand() const
+{
+  return static_cast<uint32_t>(rand_r(&seed_tls));
+}
 
 } // namespace hrpc
 
-#endif // _HRPC_SERVICE_H

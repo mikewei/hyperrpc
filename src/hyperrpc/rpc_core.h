@@ -27,48 +27,44 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _HRPC_SERVICE_H
-#define _HRPC_SERVICE_H
+#ifndef _HRPC_RPC_CORE_H
+#define _HRPC_RPC_CORE_H
 
-#include <hyperrpc/hyperrpc.h>
-
-namespace google {
-namespace protobuf {
-  class Descriptor;
-  class ServiceDescriptor;
-  class MethodDescriptor;
-  class Message;
-} // namespace protobuf
-} // namespace google
+#include "hyperrpc/env.h"
 
 namespace hrpc {
 
-class Service
+using hudp::Buf;
+using hudp::Addr;
+
+class Service;
+
+class RpcCore
 {
 public:
-  inline Service() {}
-  virtual ~Service() {}
+  using OnSendPacket = ccb::ClosureFunc<void(const Buf&, const Addr&)>;
+  using OnFindService = ccb::ClosureFunc<Service*(const std::string&)>;
+  using OnServiceRouting = HyperRpc::OnServiceRouting;
 
-  virtual const ::google::protobuf::ServiceDescriptor* GetDescriptor() = 0;
+  RpcCore(const Env& env);
+  ~RpcCore();
 
-  virtual void CallMethod(const ::google::protobuf::MethodDescriptor* method,
-                          const ::google::protobuf::Message* request,
-                          ::google::protobuf::Message* response,
-                          ::ccb::ClosureFunc<void(Result)> done) = 0;
-
-  virtual const ::google::protobuf::Message& GetRequestPrototype(
-                const ::google::protobuf::MethodDescriptor* method) const = 0;
-  virtual const ::google::protobuf::Message& GetResponsePrototype(
-                const ::google::protobuf::MethodDescriptor* method) const = 0;
+  bool Init(OnSendPacket on_send_pkt,
+            OnFindService on_find_svc,
+            OnServiceRouting on_svc_routing);
+  void CallMethod(const ::google::protobuf::MethodDescriptor* method,
+                  const ::google::protobuf::Message* request,
+                  ::google::protobuf::Message* response,
+                  ::ccb::ClosureFunc<void(Result)> done);
+  void OnRecvPacket(const Buf& buf, const Addr& addr);
 
 private:
-  // not copyable and movable
-  Service(const Service&) = delete;
-  void operator=(const Service&) = delete;
-  Service(Service&&) = delete;
-  void operator=(Service&&) = delete;
+  const Env& env_;
+  OnSendPacket on_send_packet_;
+  OnFindService on_find_service_;
+  OnServiceRouting on_service_routing_;
 };
 
 } // namespace hrpc
 
-#endif // _HRPC_SERVICE_H
+#endif // _HRPC_RPC_CORE_H

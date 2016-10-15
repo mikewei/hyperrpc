@@ -27,48 +27,27 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _HRPC_SERVICE_H
-#define _HRPC_SERVICE_H
+#ifndef _HRPC_OPTIONS_H
+#define _HRPC_OPTIONS_H
 
-#include <hyperrpc/hyperrpc.h>
-
-namespace google {
-namespace protobuf {
-  class Descriptor;
-  class ServiceDescriptor;
-  class MethodDescriptor;
-  class Message;
-} // namespace protobuf
-} // namespace google
+#include <hyperudp/options.h>
+#include "hyperrpc/hyperrpc.h"
 
 namespace hrpc {
 
-class Service
+class Options : public hudp::Options
 {
 public:
-  inline Service() {}
-  virtual ~Service() {}
+  // Options is only copyable
+  Options(const Options&) = default;
+  Options& operator=(const Options&) = default;
 
-  virtual const ::google::protobuf::ServiceDescriptor* GetDescriptor() = 0;
-
-  virtual void CallMethod(const ::google::protobuf::MethodDescriptor* method,
-                          const ::google::protobuf::Message* request,
-                          ::google::protobuf::Message* response,
-                          ::ccb::ClosureFunc<void(Result)> done) = 0;
-
-  virtual const ::google::protobuf::Message& GetRequestPrototype(
-                const ::google::protobuf::MethodDescriptor* method) const = 0;
-  virtual const ::google::protobuf::Message& GetResponsePrototype(
-                const ::google::protobuf::MethodDescriptor* method) const = 0;
-
-private:
-  // not copyable and movable
-  Service(const Service&) = delete;
-  void operator=(const Service&) = delete;
-  Service(Service&&) = delete;
-  void operator=(Service&&) = delete;
+protected:
+  // non-copy contruction is private
+  Options() = default;
+  friend class OptionsBuilder;
 };
 
 } // namespace hrpc
 
-#endif // _HRPC_SERVICE_H
+#endif // _HRPC_OPTIONS_H
