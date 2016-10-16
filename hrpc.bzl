@@ -123,7 +123,7 @@ proto_gen = rule(
 """Generates codes from Protocol Buffers definitions.
 
 This rule helps you to implement Skylark macros specific to the target
-language. You should prefer more specific `cc_proto_library `,
+language. You should prefer more specific `cc_hrpc_proto_library `,
 `py_proto_library` and others unless you are adding such wrapper macros.
 
 Args:
@@ -141,7 +141,7 @@ Args:
   outs: a list of labels of the expected outputs from the protocol compiler.
 """
 
-def cc_hrpc_library(
+def cc_hrpc_proto_library(
         name,
         srcs=[],
         deps=[],
@@ -154,9 +154,9 @@ def cc_hrpc_library(
   """Bazel rule to create a C++ protobuf/hrpc library from proto source files
 
   Args:
-    name: the name of the cc_proto_library.
-    srcs: the .proto files of the cc_proto_library.
-    deps: a list of dependency labels; must be cc_proto_library.
+    name: the name of the cc_hrpc_proto_library.
+    srcs: the .proto files of the cc_hrpc_proto_library.
+    deps: a list of dependency labels; must be cc_hrpc_proto_library.
     cc_libs: a list of other cc_library targets depended by the generated
         cc_library.
     include: a string indicating the include path of the .proto files.
@@ -173,6 +173,7 @@ def cc_hrpc_library(
   if include != None:
     includes = [include]
 
+  hrpc_cpp_plugin = None
   if use_hrpc_plugin:
     hrpc_cpp_plugin = "//hyperrpc:protoc-gen-hrpc_cpp"
 

@@ -1,6 +1,6 @@
 package(default_visibility = ["//visibility:public"])
 
-load("hrpc", "cc_hrpc_library")
+load("hrpc", "cc_hrpc_proto_library")
 
 cc_library(
   name = "hyperrpc",
@@ -21,9 +21,18 @@ cc_library(
     "src/hyperrpc/*.h",
   ]),
   deps = [
+    ":hrpc_message",
     "//hyperudp",
     "//third_party/protobuf",
   ],
+)
+
+cc_hrpc_proto_library(
+  name = "hrpc_message",
+  srcs = glob(["src/hyperrpc/*.proto"]),
+  deps = [],
+  use_hrpc_plugin = False,
+  linkstatic = 1,
 )
 
 cc_binary(
@@ -64,7 +73,7 @@ cc_test(
   malloc = "//third_party/jemalloc-360"
 )
 
-cc_hrpc_library(
+cc_hrpc_proto_library(
   name = "rpc_example_proto",
   srcs = glob(["example/*.proto"]),
   deps = [],
