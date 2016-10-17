@@ -31,8 +31,11 @@
 #define _HRPC_ENV_H
 
 #include <stdarg.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <ccbase/worker_group.h>
+#include <hyperudp/addr.h>
+#include <hyperudp/buf.h>
 #include "hyperrpc/hyperrpc.h"
 #include "hyperrpc/options.h"
 
@@ -66,6 +69,16 @@ namespace hrpc {
 #define WRET_F(...) RET_F(kWarning, __VA_ARGS__)
 #define IRET_F(...) RET_F(kInfo, __VA_ARGS__)
 #define DRET_F(...) RET_F(kDebug, __VA_ARGS__)
+
+#define HRPC_ASSERT(EXP) do { \
+  if (!(EXP)) { \
+    ELOG("ASSERT failed: " #EXP ); \
+    abort(); \
+  } \
+} while(0)
+
+using hudp::Buf;
+using hudp::Addr;
 
 class BaseEnv
 {

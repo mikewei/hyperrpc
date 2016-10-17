@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package hrpc;
+
+message RpcHeader
+{
+  enum Type {
+    REQUEST = 0;
+    RESPONSE = 1;
+  };
+  Type packet_type = 1;
+  string service_name = 2;
+  string method_name = 3;
+  uint64 rpc_id = 4;
+  int32 rpc_result = 5;
+}

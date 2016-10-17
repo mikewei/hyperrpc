@@ -27,57 +27,67 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _HRPC_RPC_CORE_H
-#define _HRPC_RPC_CORE_H
+#ifndef _HRPC_RPC_CONTEXT_H
+#define _HRPC_RPC_CONTEXT_H
 
-#include "hyperrpc/env.h"
-#include "hyperrpc/rpc_session_manager.h"
+#include <google/protobuf/arena.h>
+#include <google/protobuf/message.h>
+#include "hyperrpc/hyperrpc.h"
+#include "hyperrpc/constants.h"
 
 namespace hrpc {
 
-class Service;
-class RpcHeader;
-class IncomingRpcContext;
-
-class RpcCore
+class IncomingRpcContext
 {
 public:
-  using OnSendPacket = ccb::ClosureFunc<void(const Buf&, const Addr&)>;
-  using OnFindService = ccb::ClosureFunc<Service*(const std::string&)>;
-  using OnServiceRouting = HyperRpc::OnServiceRouting;
-  //using OnRpcCoreRouting = 
+  IncomingRpcContext(const google::protobuf::MethodDescriptor* method,
+                     const google::protobuf::Message& req_prot,
+                     const google::protobuf::Message& resp_prot,
+                     uint64_t rpc_id,
+                     const Addr& addr);
+  ~IncomingRpcContext();
 
-  RpcCore(const Env& env);
-  ~RpcCore();
-
-  bool Init(OnSendPacket on_send_pkt,
-            OnFindService on_find_svc,
-            OnServiceRouting on_svc_routing);
-  void CallMethod(const google::protobuf::MethodDescriptor* method,
-                  const google::protobuf::Message* request,
-                  google::protobuf::Message* response,
-                  ccb::ClosureFunc<void(Result)> done);
-  void OnRecvPacket(const Buf& buf, const Addr& addr);
-  void OnRecvMessage(const RpcHeader& header,
-                     const Buf& body, const Addr& addr);
-
+  const google::protobuf::MethodDescriptor* method() const {
+    return method_;
+  }
+  google::protobuf::Message* request() const {
+    return request_;
+  }
+  google::protobuf::Message* response() const {
+    return response_;
+  }
+  uint64_t rpc_id() const {
+    return rpc_id_;
+  }
+  const Addr& addr() const {
+    return addr_;
+  }
 
 private:
-  void OnIncomingRpcDone(const IncomingRpcContext* rpc, Result result);
-  void OnOutgoingRpcSend(const google::protobuf::MethodDescriptor* method,
-                         const google::protobuf::Message& request,
-                         uint64_t rpc_id, const Addr& addr);
-  void SendMessage(const RpcHeader& header,
-                   const google::protobuf::Message& body,
-                   const Addr& addr);
+  char arena_buf_[kArenaInitBufSize];
+  google::protobuf::Arena arena_;
+  const google::protobuf::MethodDescriptor* method_;
+  google::protobuf::Message* request_;
+  google::protobuf::Message* response_;
+  uint64_t rpc_id_;
+  Addr addr_;
+};
 
-  const Env& env_;
-  RpcSessionManager rpc_sess_mgr_;
-  OnSendPacket on_send_packet_;
-  OnFindService on_find_service_;
-  OnServiceRouting on_service_routing_;
+class OutgoingRpcContext
+{
+public:
+  OutgoingRpcContext(const google::protobuf::MethodDescriptor* method,
+                     const google::protobuf::Message* request,
+                     google::protobuf::Message* response,
+                     const std::vector<Addr>& addrs);
+  ~OutgoingRpcContext();
+
+private:
+  const google::protobuf::MethodDescriptor* method_;
+  google::protobuf::Message* request_;
+  google::protobuf::Message* response_;
 };
 
 } // namespace hrpc
 
-#endif // _HRPC_RPC_CORE_H
+#endif // _HRPC_RPC_CONTEXT_H

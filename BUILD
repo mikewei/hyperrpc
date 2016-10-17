@@ -29,6 +29,7 @@ cc_library(
 
 cc_hrpc_proto_library(
   name = "hrpc_message",
+  include = "src",
   srcs = glob(["src/hyperrpc/*.proto"]),
   deps = [],
   use_hrpc_plugin = False,

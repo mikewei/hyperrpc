@@ -27,7 +27,7 @@ private:
   hudp::HyperUdp hyper_udp_;
   OnServiceRouting on_service_routing_;
   std::unordered_map<std::string, Service*> service_map_;
-  std::vector<RpcCore> rpc_core_vec_;
+  std::vector<std::unique_ptr<RpcCore>> rpc_core_vec_;
   bool is_initialized_;
 };
 
@@ -61,8 +61,8 @@ bool HyperRpc::Impl::Start(const Addr& bind_local_addr)
   assert(!is_initialized_);
   size_t worker_num = env_.opt().worker_num;
   for (size_t i = 0; i < worker_num; i++) {
-    rpc_core_vec_.emplace_back(env_);
-    if (!rpc_core_vec_[i].Init(
+    rpc_core_vec_.emplace_back(new RpcCore(env_));
+    if (!rpc_core_vec_[i]->Init(
           // OnSendPacket
           [this](const Buf& buf, const Addr& addr) {
             hyper_udp_.Send(buf, addr);

@@ -66,10 +66,14 @@ using ::hudp::Addr;
  */
 enum Result
 {
-  kSuccess = 0,
-  kNoRoute = 1,
-  kTimeout = 2,
-  kNotImpl = 3,
+  // user-code generated results
+  kSuccess = 0, // rpc done successfully
+  kFailure = 1, // user defined failure
+  // framework generated results
+  kNoRoute = 2, // cannot resolve ip:port of target service
+  kTimeout = 3, // rpc timeout in the end
+  kNotImpl = 4, // method called is not implemented by server
+  kInError = 5, // other internal errors
 };
 
 class OptionsBuilder : public ::hudp::OptionsBuilder
@@ -100,9 +104,9 @@ private:
 class HyperRpc
 {
 public:
-  using OnServiceRouting = ::ccb::ClosureFunc<bool(const std::string& svc,
-                                                   Addr* out)>;
-
+  using OnServiceRouting = ::ccb::ClosureFunc<bool(const std::string& service,
+                                                   const std::string& method,
+                                                   std::vector<Addr>* out)>;
   HyperRpc();
   HyperRpc(const Options& opt);
   virtual ~HyperRpc();
