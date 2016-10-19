@@ -34,6 +34,7 @@
 #include "hyperrpc/hyperrpc.h"
 #include "hyperrpc/env.h"
 #include "hyperrpc/constants.h"
+#include "hyperrpc/endpoint_list.h"
 
 namespace hrpc {
 
@@ -55,6 +56,7 @@ public:
   bool AddSession(const ::google::protobuf::MethodDescriptor* method,
                   const ::google::protobuf::Message* request,
                   ::google::protobuf::Message* response,
+                  const EndpointList& endpoint_list,
                   ::ccb::ClosureFunc<void(Result)> done);
   void OnRecvResponse(const std::string& service,
                       const std::string& method,
@@ -71,6 +73,7 @@ private:
     google::protobuf::Message* response;
     ccb::ClosureFunc<void(Result)> done;
     ccb::TimerOwner timer_owner;
+    EndpointList endpoint_list;
   };
 
   SessionNode* AllocSessionNode();

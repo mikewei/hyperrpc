@@ -35,6 +35,7 @@
 #include <ccbase/closure.h>
 #include <hyperudp/hyperudp.h>
 #include "hyperrpc/options.h"
+#include "hyperrpc/endpoint_list.h"
 
 namespace google {
 namespace protobuf {
@@ -91,6 +92,8 @@ public:
    */
   Options Build();
 
+  OptionsBuilder& MaxRpcSessions(size_t num);
+
 private:
   // not copyable and movable
   OptionsBuilder(const OptionsBuilder&) = delete;
@@ -106,7 +109,7 @@ class HyperRpc
 public:
   using OnServiceRouting = ::ccb::ClosureFunc<bool(const std::string& service,
                                                    const std::string& method,
-                                                   std::vector<Addr>* out)>;
+                                                   EndpointList* out)>;
   HyperRpc();
   HyperRpc(const Options& opt);
   virtual ~HyperRpc();

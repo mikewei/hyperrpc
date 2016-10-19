@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <unordered_map>
 #include <google/protobuf/descriptor.h>
 #include "hyperrpc/hyperrpc.h"
@@ -23,6 +22,10 @@ public:
                   ::google::protobuf::Message* response,
                   ::ccb::ClosureFunc<void(Result)>& done);
 private:
+  Service* OnFindService(const std::string& service_name);
+  void OnSendPacket(const Buf& buf, const Addr& addr);
+  void OnRecvPacket(const Buf& buf, const Addr& addr);
+
   Env env_;
   hudp::HyperUdp hyper_udp_;
   OnServiceRouting on_service_routing_;
@@ -58,32 +61,66 @@ bool HyperRpc::Impl::InitAsServer(std::vector<Service*>& services)
 
 bool HyperRpc::Impl::Start(const Addr& bind_local_addr)
 {
-  assert(!is_initialized_);
+  HRPC_ASSERT(!is_initialized_);
+  // initialize RpcCore vector
+  RpcCore::OnSendPacket on_send_packet {
+    ccb::BindClosure(this, &HyperRpc::Impl::OnSendPacket)
+  };
+  RpcCore::OnFindService on_find_service {
+    ccb::BindClosure(this, &HyperRpc::Impl::OnFindService)
+  };
   size_t worker_num = env_.opt().worker_num;
   for (size_t i = 0; i < worker_num; i++) {
     rpc_core_vec_.emplace_back(new RpcCore(env_));
-    if (!rpc_core_vec_[i]->Init(
-          // OnSendPacket
-          [this](const Buf& buf, const Addr& addr) {
-            hyper_udp_.Send(buf, addr);
-          },
-          // OnFindService
-          [this](const std::string& name) -> Service* {
-            auto it = service_map_.find(name);
-            if (it != service_map_.end()) return it->second;
-            else return nullptr;
-          },
-          on_service_routing_)) {
+    if (!rpc_core_vec_[i]->Init(i, on_send_packet,
+                                   on_find_service,
+                                   on_service_routing_)) {
       rpc_core_vec_.clear();
       return false;
     }
   }
-  if (!hyper_udp_.Init(bind_local_addr, nullptr)) {
+  // initialize HyperUdp
+  if (!hyper_udp_.Init(bind_local_addr,
+                       ccb::BindClosure(this, &HyperRpc::Impl::OnRecvPacket)))
+  {
     rpc_core_vec_.clear();
     return false;
   }
+  // done
   is_initialized_ = true;
   return true;
+}
+
+Service* HyperRpc::Impl::OnFindService(const std::string& service_name)
+{
+  auto it = service_map_.find(service_name);
+  if (it != service_map_.end()) {
+    return it->second;
+  } else {
+    return nullptr;
+  }
+}
+
+void HyperRpc::Impl::OnSendPacket(const Buf& buf, const Addr& addr)
+{
+  hyper_udp_.Send(buf, addr);
+}
+
+void HyperRpc::Impl::OnRecvPacket(const Buf& buf, const Addr& addr)
+{
+  size_t cur_core_id = ccb::Worker::self()->id();
+  size_t dst_core_id = rpc_core_vec_[cur_core_id]->OnRecvPacket(buf, addr);
+  if (dst_core_id != cur_core_id) {
+    // cross thread redirect
+    size_t redirect_buf_len = buf.len();
+    void*  redirect_buf_ptr = env_.alloc().Alloc(redirect_buf_len);
+    memcpy(static_cast<char*>(redirect_buf_ptr), buf.ptr(), buf.len());
+    ccb::Worker::self()->worker_group()->PostTask(dst_core_id, [=] {
+      rpc_core_vec_[dst_core_id]->OnRecvPacket(
+                             {redirect_buf_ptr, redirect_buf_len}, addr);
+      env_.alloc().Free(redirect_buf_ptr, redirect_buf_len);
+    });
+  }
 }
 
 void HyperRpc::Impl::CallMethod(
@@ -92,7 +129,7 @@ void HyperRpc::Impl::CallMethod(
                   ::google::protobuf::Message* response,
                   ::ccb::ClosureFunc<void(Result)>& done)
 {
-  assert(is_initialized_);
+  HRPC_ASSERT(is_initialized_);
 }
 
 //------------------------- class HyperRpc -----------------------------

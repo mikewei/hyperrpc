@@ -27,30 +27,50 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _HRPC_OPTIONS_H
-#define _HRPC_OPTIONS_H
+#ifndef _HRPC_ENDPOINT_LIST_H
+#define _HRPC_ENDPOINT_LIST_H
 
-#include <hyperudp/options.h>
-#include "hyperrpc/hyperrpc.h"
+#include <hyperudp/addr.h>
 
 namespace hrpc {
 
-class Options : public hudp::Options
+using ::hudp::Addr;
+
+class EndpointList
 {
 public:
-  // Options is only copyable
-  Options(const Options&) = default;
-  Options& operator=(const Options&) = default;
+  EndpointList();
+  EndpointList(const EndpointList& other);
+  ~EndpointList();
 
-  // RpcSessionManager options
-  size_t max_rpc_sessions;
+  // modifiers
+  bool PushBack(const Addr& endpoint);
+  void Clear();
 
-protected:
-  // non-copy contruction is private
-  Options() = default;
-  friend class OptionsBuilder;
+  // accessors
+  size_t size() const {
+    return size_;
+  }
+  bool empty() const {
+    return size_ == 0;
+  }
+  Addr operator[](size_t pos) const {
+    return {list_[pos].ip, list_[pos].port};
+  }
+
+
+private:
+  struct Endpoint {
+    uint32_t ip;
+    uint16_t port;
+  };
+  // max of 4 backup endpoints are enough for one rpc session
+  static constexpr size_t kCapacity = 4;
+
+  size_t size_;
+  Endpoint list_[kCapacity];
 };
 
 } // namespace hrpc
 
-#endif // _HRPC_OPTIONS_H
+#endif // _HRPC_ENDPOINT_LIST_H

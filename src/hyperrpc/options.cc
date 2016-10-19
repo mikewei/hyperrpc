@@ -67,4 +67,14 @@ Options OptionsBuilder::Build()
   return *hrpc_opt_;
 }
 
+// RpcSessionManager options
+OptionsBuilder& OptionsBuilder::MaxRpcSessions(size_t num)
+{
+  if (num < hrpc_opt_->worker_num) {
+    throw std::invalid_argument("Invalid value!");
+  }
+  hrpc_opt_->max_rpc_sessions = num;
+  return *this;
+}
+
 } // namespace hrpc

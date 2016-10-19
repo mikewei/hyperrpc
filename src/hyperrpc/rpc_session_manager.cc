@@ -68,6 +68,7 @@ bool RpcSessionManager::AddSession(
                           const ::google::protobuf::MethodDescriptor* method,
                           const ::google::protobuf::Message* request,
                           ::google::protobuf::Message* response,
+                          const EndpointList& endpoint_list,
                           ::ccb::ClosureFunc<void(Result)> done)
 {
   SessionNode* node = AllocSessionNode();
@@ -80,8 +81,9 @@ bool RpcSessionManager::AddSession(
   node->request = request;
   node->response = response;
   node->done = std::move(done);
+  node->endpoint_list = endpoint_list;
   // todo: set timer
-  on_send_request_(method, *request, node->rpc_id, {"127.0.0.1", 8888});
+  on_send_request_(method, *request, node->rpc_id, endpoint_list[0]);
   return true;
 }
 

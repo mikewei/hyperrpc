@@ -45,24 +45,24 @@ public:
   using OnSendPacket = ccb::ClosureFunc<void(const Buf&, const Addr&)>;
   using OnFindService = ccb::ClosureFunc<Service*(const std::string&)>;
   using OnServiceRouting = HyperRpc::OnServiceRouting;
-  //using OnRpcCoreRouting = 
 
   RpcCore(const Env& env);
   ~RpcCore();
 
-  bool Init(OnSendPacket on_send_pkt,
-            OnFindService on_find_svc,
-            OnServiceRouting on_svc_routing);
+  bool Init(size_t rpc_core_id, OnSendPacket on_send_pkt,
+                                OnFindService on_find_svc,
+                                OnServiceRouting on_svc_routing);
   void CallMethod(const google::protobuf::MethodDescriptor* method,
                   const google::protobuf::Message* request,
                   google::protobuf::Message* response,
                   ccb::ClosureFunc<void(Result)> done);
-  void OnRecvPacket(const Buf& buf, const Addr& addr);
-  void OnRecvMessage(const RpcHeader& header,
-                     const Buf& body, const Addr& addr);
-
+  size_t OnRecvPacket(const Buf& buf, const Addr& addr);
 
 private:
+  void OnRecvRequestMessage(const RpcHeader& header,
+                            const Buf& body, const Addr& addr);
+  void OnRecvResponseMessage(const RpcHeader& header,
+                             const Buf& body, const Addr& addr);
   void OnIncomingRpcDone(const IncomingRpcContext* rpc, Result result);
   void OnOutgoingRpcSend(const google::protobuf::MethodDescriptor* method,
                          const google::protobuf::Message& request,
@@ -71,7 +71,14 @@ private:
                    const google::protobuf::Message& body,
                    const Addr& addr);
 
+  // not copyable and movable
+  RpcCore(const RpcCore&) = delete;
+  void operator=(const RpcCore&) = delete;
+  RpcCore(RpcCore&&) = delete;
+  void operator=(RpcCore&&) = delete;
+
   const Env& env_;
+  size_t rpc_core_id_;
   RpcSessionManager rpc_sess_mgr_;
   OnSendPacket on_send_packet_;
   OnFindService on_find_service_;

@@ -20,14 +20,15 @@ RpcCore::~RpcCore()
 }
 
 
-bool RpcCore::Init(OnSendPacket on_send_pkt,
-                   OnFindService on_find_svc,
-                   OnServiceRouting on_svc_routing)
+bool RpcCore::Init(size_t rpc_core_id, OnSendPacket on_send_pkt,
+                                   OnFindService on_find_svc,
+                                   OnServiceRouting on_svc_routing)
 {
+  rpc_core_id_ = rpc_core_id;
   on_send_packet_ = on_send_pkt;
   on_find_service_ = on_find_svc;
   on_service_routing_ = on_svc_routing;
-  if (!rpc_sess_mgr_.Init(10000, 0, // todo: add options
+  if (!rpc_sess_mgr_.Init(env_.opt().max_rpc_sessions, rpc_core_id,
                      ccb::BindClosure(this, &RpcCore::OnOutgoingRpcSend))) {
     ELOG("RpcSessionManager init failed!");
     return false;
@@ -42,73 +43,104 @@ void RpcCore::CallMethod(const ::google::protobuf::MethodDescriptor* method,
 {
   const std::string& service_name = method->service()->name();
   const std::string& method_name = method->name();
-  // resolve address
-  static thread_local std::vector<Addr> addrs;
+  // resolve endpoints of service.method
+  EndpointList endpoints;
   if (!on_service_routing_ ||
-      !on_service_routing_(service_name, method_name, &addrs) ||
-      addrs.empty()) {
-    WLOG("cannot resolve address for %s.%s", service_name.c_str(),
-                                             method_name.c_str());
+      !on_service_routing_(service_name, method_name, &endpoints) ||
+      endpoints.empty()) {
+    WLOG("cannot resolve endpoints for %s.%s", service_name.c_str(),
+                                               method_name.c_str());
     done(kNoRoute);
     return;
   }
-  // create rpc session
-  // todo: addrs
-  rpc_sess_mgr_.AddSession(method, request, response, std::move(done));
+  rpc_sess_mgr_.AddSession(method, request, response,
+                           endpoints, std::move(done));
 }
 
-void RpcCore::OnRecvPacket(const Buf& buf, const Addr& addr)
+size_t RpcCore::OnRecvPacket(const Buf& buf, const Addr& addr)
 {
+  size_t cur_rpc_core_id = rpc_core_id_;
   // parse RpcPakcetHeader
-  if (buf.len() <= sizeof(RpcPacketHeader))
-    IRET("packet len too short!");
+  if (buf.len() <= sizeof(RpcPacketHeader)) {
+    ILOG("packet len too short!");
+    return cur_rpc_core_id;
+  }
   auto pkt_header = static_cast<const RpcPacketHeader*>(buf.ptr());
-  if (pkt_header->hrpc_pkt_tag != kHyperRpcPacketTag)
-    IRET("bad packet tag!");
-  if (pkt_header->hrpc_pkt_ver != kHyperRpcPacketVer)
-    IRET("packet ver dismatch!");
+  if (pkt_header->hrpc_pkt_tag != kHyperRpcPacketTag) {
+    ILOG("bad packet tag!");
+    return cur_rpc_core_id;
+  }
+  if (pkt_header->hrpc_pkt_ver != kHyperRpcPacketVer) {
+    ILOG("packet ver dismatch!");
+    return cur_rpc_core_id;
+  }
   size_t rpc_header_len = ntohs(pkt_header->rpc_header_len);
   size_t rpc_body_len = ntohl(pkt_header->rpc_body_len);
-  if (buf.len() != sizeof(RpcPacketHeader) + rpc_header_len + rpc_body_len)
-    IRET("bad packet len!");
+  if (buf.len() != sizeof(RpcPacketHeader) + rpc_header_len + rpc_body_len) {
+    ILOG("bad packet len!");
+    return cur_rpc_core_id;
+  }
   const void* rpc_header_ptr = buf.char_ptr() + sizeof(RpcPacketHeader);
   const void* rpc_body_ptr = static_cast<const char*>(rpc_header_ptr)
                            + rpc_header_len;
   // parse RpcHeader
   static thread_local RpcHeader rpc_header;
-  if (!rpc_header.ParseFromArray(rpc_header_ptr, rpc_header_len))
-    IRET("parse RpcHeader failed!");
+  if (!rpc_header.ParseFromArray(rpc_header_ptr, rpc_header_len)) {
+    ILOG("parse RpcHeader failed!");
+    return cur_rpc_core_id;
+  }
   if (rpc_header.packet_type() == RpcHeader::REQUEST) {
     // process REQUEST message
-    Service* service = on_find_service_(rpc_header.service_name());
-    if (!service) IRET("service requested not found locally!");
-    auto service_d = service->GetDescriptor();
-    if (!service_d) IRET("get service descriptor failed!");
-    auto method_d = service_d->FindMethodByName(rpc_header.method_name());
-    if (!method_d) IRET("get method descriptor failed!");
-    IncomingRpcContext* rpc = new IncomingRpcContext(method_d,
-                                    service->GetRequestPrototype(method_d),
-                                    service->GetResponsePrototype(method_d),
-                                    rpc_header.rpc_id(), addr);
-
-    if (!rpc->request()->ParseFromArray(rpc_body_ptr, rpc_body_len))
-      IRET("parse Request message failed!");
-    // always run local method within receiving worker-thread
-    service->CallMethod(method_d, rpc->request(), rpc->response(),
-               ccb::BindClosure(this, &RpcCore::OnIncomingRpcDone, rpc));
+    OnRecvRequestMessage(rpc_header, {rpc_body_ptr, rpc_body_len}, addr);
   } else {
     // process RESPONSE message
-    if (rpc_header.rpc_result() ||
-        rpc_header.rpc_result() > kMaxResultValue) {
-      IRET("invalid rpc_result value!");
+    size_t rpc_core_id_plus_1 = rpc_header.rpc_id() >> kRpcIdSeqPartBits;
+    if (rpc_core_id_plus_1 == 0 ||
+        rpc_core_id_plus_1 > env_.opt().worker_num) {
+      ILOG("invalid rpc_core_id_plus_1:%lu!", rpc_core_id_plus_1);
+      return cur_rpc_core_id;
     }
-    Result rpc_result = static_cast<Result>(rpc_header.rpc_result());
-    rpc_sess_mgr_.OnRecvResponse(rpc_header.service_name(),
-                                 rpc_header.method_name(),
-                                 rpc_header.rpc_id(),
-                                 rpc_result,
-                                 {rpc_body_ptr, rpc_body_len});
+    size_t dst_rpc_core_id = rpc_core_id_plus_1 - 1;
+    if (dst_rpc_core_id != cur_rpc_core_id) { // need redirect
+      DLOG("redirect to rpc_core_id:%lu", dst_rpc_core_id);
+      return dst_rpc_core_id;
+    }
+    OnRecvResponseMessage(rpc_header, {rpc_body_ptr, rpc_body_len}, addr);
   }
+  return 0;
+}
+
+void RpcCore::OnRecvRequestMessage(const RpcHeader& header,
+                                   const Buf& body, const Addr& addr)
+{
+  Service* service = on_find_service_(header.service_name());
+  if (!service) IRET("service requested not found locally!");
+  auto service_desc = service->GetDescriptor();
+  if (!service_desc) IRET("get service descriptor failed!");
+  auto method_desc = service_desc->FindMethodByName(header.method_name());
+  if (!method_desc) IRET("get method descriptor failed!");
+  IncomingRpcContext* ctx = new IncomingRpcContext(method_desc,
+                                  service->GetRequestPrototype(method_desc),
+                                  service->GetResponsePrototype(method_desc),
+                                  header.rpc_id(), addr);
+
+  if (!ctx->request()->ParseFromArray(body.ptr(), body.len()))
+    IRET("parse Request message failed!");
+  // dispatch incoming rpc within receiving worker-thread
+  service->CallMethod(method_desc, ctx->request(), ctx->response(),
+               ccb::BindClosure(this, &RpcCore::OnIncomingRpcDone, ctx));
+}
+
+void RpcCore::OnRecvResponseMessage(const RpcHeader& header,
+                                    const Buf& body, const Addr& addr)
+{
+  if (header.rpc_result() < 0 || header.rpc_result() > kMaxResultValue) {
+    ILOG("invalid rpc_result value!");
+    return;
+  }
+  Result rpc_result = static_cast<Result>(header.rpc_result());
+  rpc_sess_mgr_.OnRecvResponse(header.service_name(), header.method_name(),
+                               header.rpc_id(), rpc_result, body);
 }
 
 void RpcCore::OnIncomingRpcDone(const IncomingRpcContext* rpc, Result result)

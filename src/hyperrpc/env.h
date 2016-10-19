@@ -36,6 +36,8 @@
 #include <ccbase/worker_group.h>
 #include <hyperudp/addr.h>
 #include <hyperudp/buf.h>
+#include <hyperudp/chunk_alloc.h>
+#include <hyperudp/env.h>
 #include "hyperrpc/hyperrpc.h"
 #include "hyperrpc/options.h"
 
@@ -79,47 +81,20 @@ namespace hrpc {
 
 using hudp::Buf;
 using hudp::Addr;
+using hudp::ChunkAlloc;
 
-class BaseEnv
-{
-public:
-  BaseEnv(const Options& opt)
-    : opt_(opt) {
-  }
-
-  void Log(LogLevel lv, const char* fmt, ...) const {
-    if (lv <= opt_.log_lv && opt_.log_f) {
-      char buf[4096];
-      va_list args;
-      va_start(args, fmt);
-      vsnprintf(buf, sizeof(buf), fmt, args);
-      va_end(args);
-      opt_.log_f(lv, buf);
-    }
-  }
-
-  const Options& opt() const {
-    return opt_;
-  }
-
-private:
-  Options opt_;
-};
-
-class Env : public BaseEnv
+class Env : public hudp::Env
 {
 public:
   Env(const Options& opt, ccb::TimerWheel* tw = nullptr);
   ~Env();
 
-  ccb::TimerWheel* timerw() const {
-    return (timerw_ ? timerw_ : ccb::Worker::self());
+  const Options& opt() const {
+    return hrpc_opt_;
   }
 
-  uint32_t Rand() const;
 private:
-  ccb::TimerWheel* timerw_;
-  static thread_local unsigned int seed_tls;
+  Options hrpc_opt_;
 };
 
 } // namespace hrpc

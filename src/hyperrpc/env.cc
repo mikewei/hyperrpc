@@ -32,40 +32,19 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <time.h>
+#include <hyperudp/module_registry.h>
 #include "hyperrpc/env.h"
 
 namespace hrpc {
 
-static unsigned int GenerateSeed()
-{
-  unsigned int seed = static_cast<unsigned int>(time(nullptr));
-  int f = open("/dev/urandom", O_RDONLY);
-  if (f >= 0) read(f, &seed, sizeof(seed));
-  return seed;
-}
-
-static unsigned int GetGlobalSeed()
-{
-  static unsigned int global_seed = GenerateSeed();
-  return global_seed;
-}
-
-thread_local unsigned int Env::seed_tls = GetGlobalSeed();
-
 Env::Env(const Options& opt, ccb::TimerWheel* tw)
-  : BaseEnv(opt)
-  , timerw_(tw)
+  : hudp::Env(opt, tw)
+  , hrpc_opt_(opt)
 {
-  Log(kDebug, "initialized seed = %u", seed_tls);
 }
 
 Env::~Env()
 {
-}
-
-uint32_t Env::Rand() const
-{
-  return static_cast<uint32_t>(rand_r(&seed_tls));
 }
 
 } // namespace hrpc
