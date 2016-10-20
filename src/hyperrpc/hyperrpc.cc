@@ -115,11 +115,15 @@ void HyperRpc::Impl::OnRecvPacket(const Buf& buf, const Addr& addr)
     size_t redirect_buf_len = buf.len();
     void*  redirect_buf_ptr = env_.alloc().Alloc(redirect_buf_len);
     memcpy(static_cast<char*>(redirect_buf_ptr), buf.ptr(), buf.len());
-    ccb::Worker::self()->worker_group()->PostTask(dst_core_id, [=] {
+    if (!ccb::Worker::self()->worker_group()->PostTask(dst_core_id, [=] {
       rpc_core_vec_[dst_core_id]->OnRecvPacket(
                              {redirect_buf_ptr, redirect_buf_len}, addr);
       env_.alloc().Free(redirect_buf_ptr, redirect_buf_len);
-    });
+    })) {
+      // worker-queue overflow
+      WLOG("OnRecvPacket PostTask failed because of worker-queue overflow!");
+      env_.alloc().Free(redirect_buf_ptr, redirect_buf_len);
+    }
   }
 }
 
@@ -130,6 +134,24 @@ void HyperRpc::Impl::CallMethod(
                   ::ccb::ClosureFunc<void(Result)>& done)
 {
   HRPC_ASSERT(is_initialized_);
+  ccb::WorkerGroup* worker_group = hyper_udp_.GetWorkerGroup();
+  if (worker_group->is_current_thread()) {
+    // dispatch in current worker-thread
+    size_t rpc_core_id = ccb::Worker::self()->id();
+    rpc_core_vec_[rpc_core_id]->CallMethod(method, request, response,
+                                           std::move(done));
+  } else {
+    // dispatch to a worker-thread of worker-group
+    if (!worker_group->PostTask([=] {
+      size_t rpc_core_id = ccb::Worker::self()->id();
+      rpc_core_vec_[rpc_core_id]->CallMethod(method, request, response,
+                                             std::move(done));
+    })) {
+      // worker-queue overflow
+      WLOG("CallMethod PostTask failed because of worker-queue overflow!");
+      done(kInError);
+    }
+  }
 }
 
 //------------------------- class HyperRpc -----------------------------
