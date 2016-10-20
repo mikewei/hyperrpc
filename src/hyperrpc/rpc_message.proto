@@ -1,4 +1,5 @@
-syntax = "proto3";
+syntax = "proto2";
+option cc_enable_arenas = true;
 
 package hrpc;
 
@@ -8,9 +9,9 @@ message RpcHeader
     REQUEST = 0;
     RESPONSE = 1;
   };
-  Type packet_type = 1;
-  string service_name = 2;
-  string method_name = 3;
-  uint64 rpc_id = 4;
-  int32 rpc_result = 5;
+  optional Type packet_type = 1;
+  optional string service_name = 2;
+  optional string method_name = 3;
+  optional uint64 rpc_id = 4;
+  optional int32 rpc_result = 5;
 }
