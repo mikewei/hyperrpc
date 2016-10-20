@@ -33,6 +33,8 @@ cc_hrpc_proto_library(
   srcs = glob(["src/hyperrpc/*.proto"]),
   deps = [],
   use_hrpc_plugin = False,
+  copts = ["-O2"],
+  nocopts = "-fPIC",
   linkstatic = 1,
 )
 
@@ -40,7 +42,7 @@ cc_binary(
   name = "protoc-gen-hrpc_cpp",
   copts = [
     "-g",
-    "-O0",
+    "-O2",
     "-Wall",
   ],
   nocopts = "-fPIC",
