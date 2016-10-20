@@ -30,7 +30,7 @@
 #ifndef _HRPC_ENDPOINT_LIST_H
 #define _HRPC_ENDPOINT_LIST_H
 
-#include <hyperudp/addr.h>
+#include "hyperrpc/hyperrpc.h"
 
 namespace hrpc {
 
@@ -41,34 +41,44 @@ class EndpointList
 public:
   EndpointList();
   EndpointList(const EndpointList& other);
-  ~EndpointList();
+  ~EndpointList() ;
 
-  // modifiers
-  bool PushBack(const Addr& endpoint);
+  void PushBack(const Addr& endpoint);
   void Clear();
+  Addr GetEndpoint(size_t index) const;
 
-  // accessors
   size_t size() const {
     return size_;
   }
   bool empty() const {
     return size_ == 0;
   }
-  Addr operator[](size_t pos) const {
-    return {list_[pos].ip, list_[pos].port};
-  }
-
 
 private:
   struct Endpoint {
     uint32_t ip;
     uint16_t port;
   };
-  // max of 4 backup endpoints are enough for one rpc session
-  static constexpr size_t kCapacity = 4;
+  static constexpr size_t kListCacheSize = 3;
+  static constexpr size_t kListInHeapInitSize = (1UL << 2);
 
   size_t size_;
-  Endpoint list_[kCapacity];
+  Endpoint list_cache_[kListCacheSize];
+  Endpoint* list_in_heap_;
+};
+
+class EndpointListBuilderImpl : public EndpointListBuilder
+{
+public:
+  EndpointListBuilderImpl(EndpointList* endpoint_list);
+  virtual ~EndpointListBuilderImpl() override;
+
+  virtual void PushBack(const Addr& endpoint) override;
+  virtual void Clear() override;
+  virtual size_t Size() const override;
+
+private:
+  EndpointList* endpoint_list_;
 };
 
 } // namespace hrpc

@@ -83,7 +83,8 @@ bool RpcSessionManager::AddSession(
   node->done = std::move(done);
   node->endpoint_list = endpoint_list;
   // todo: set timer
-  on_send_request_(method, *request, node->rpc_id, endpoint_list[0]);
+  on_send_request_(method, *request, node->rpc_id,
+                   endpoint_list.GetEndpoint(0));
   return true;
 }
 

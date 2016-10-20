@@ -45,8 +45,9 @@ void RpcCore::CallMethod(const ::google::protobuf::MethodDescriptor* method,
   const std::string& method_name = method->name();
   // resolve endpoints of service.method
   EndpointList endpoints;
+  EndpointListBuilderImpl endpoints_builder(&endpoints);
   if (!on_service_routing_ ||
-      !on_service_routing_(service_name, method_name, &endpoints) ||
+      !on_service_routing_(service_name, method_name, &endpoints_builder) ||
       endpoints.empty()) {
     WLOG("cannot resolve endpoints for %s.%s", service_name.c_str(),
                                                method_name.c_str());
