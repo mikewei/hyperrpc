@@ -35,20 +35,20 @@
 
 namespace hrpc {
 
-class Options : public hudp::Options
+class Options
 {
 public:
+  Options() = default;
   // Options is only copyable
   Options(const Options&) = default;
   Options& operator=(const Options&) = default;
 
-  // RpcSessionManager options
-  size_t max_rpc_sessions;
+  // HyperUdp options
+  hudp::Options hudp_options;
 
-protected:
-  // non-copy contruction is private
-  Options() = default;
-  friend class OptionsBuilder;
+  // RpcSessionManager options
+  size_t max_rpc_sessions = 0;
+  size_t default_rpc_timeout = 0;
 };
 
 } // namespace hrpc

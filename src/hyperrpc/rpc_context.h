@@ -41,11 +41,12 @@ class IncomingRpcContext
 {
 public:
   IncomingRpcContext(const google::protobuf::MethodDescriptor* method,
-                     const google::protobuf::Message& req_prot,
-                     const google::protobuf::Message& resp_prot,
                      uint64_t rpc_id,
                      const Addr& addr);
-  ~IncomingRpcContext();
+  virtual ~IncomingRpcContext();
+
+  virtual void Init(const google::protobuf::Message& req_prot,
+                    const google::protobuf::Message& resp_prot);
 
   const google::protobuf::MethodDescriptor* method() const {
     return method_;
@@ -63,14 +64,28 @@ public:
     return addr_;
   }
 
-private:
-  char arena_buf_[kArenaInitBufSize];
-  google::protobuf::Arena arena_;
+protected:
   const google::protobuf::MethodDescriptor* method_;
   google::protobuf::Message* request_;
   google::protobuf::Message* response_;
   uint64_t rpc_id_;
   Addr addr_;
+};
+
+class ArenaIncomingRpcContext : public IncomingRpcContext
+{
+public:
+  ArenaIncomingRpcContext(const google::protobuf::MethodDescriptor* method,
+                          uint64_t rpc_id,
+                          const Addr& addr);
+  virtual ~ArenaIncomingRpcContext();
+
+  virtual void Init(const google::protobuf::Message& req_prot,
+                    const google::protobuf::Message& resp_prot) override;
+
+protected:
+  char arena_buf_[kArenaInitBufSize];
+  google::protobuf::Arena arena_;
 };
 
 class OutgoingRpcContext

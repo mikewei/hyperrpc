@@ -58,6 +58,7 @@ public:
                   ::google::protobuf::Message* response,
                   const EndpointList& endpoint_list,
                   ::ccb::ClosureFunc<void(Result)> done);
+  void OnSendRequestFailed(uint64_t rpc_id);
   void OnRecvResponse(const std::string& service,
                       const std::string& method,
                       uint64_t rpc_id,
@@ -73,9 +74,11 @@ private:
     google::protobuf::Message* response;
     ccb::ClosureFunc<void(Result)> done;
     ccb::TimerOwner timer_owner;
+    uint16_t endpoint_index;
     EndpointList endpoint_list;
   };
 
+  void OnSessionTimeout(SessionNode* node);
   SessionNode* AllocSessionNode();
   SessionNode* FindSessionNode(uint64_t rpc_id);
   void FreeSessionNode(SessionNode* node);

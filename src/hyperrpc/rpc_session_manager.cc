@@ -71,6 +71,10 @@ bool RpcSessionManager::AddSession(
                           const EndpointList& endpoint_list,
                           ::ccb::ClosureFunc<void(Result)> done)
 {
+  if (endpoint_list.size() > 65536) {
+    WLOG("too large endpoint_list size!");
+    return false;
+  }
   SessionNode* node = AllocSessionNode();
   if (!node) {
     WLOG("AllocSessionNode failed!");
@@ -81,11 +85,40 @@ bool RpcSessionManager::AddSession(
   node->request = request;
   node->response = response;
   node->done = std::move(done);
+  if (!node->timer_owner.has_timer()) {
+    env_.timerw()->AddTimer(
+         env_.opt().default_rpc_timeout,
+         ccb::BindClosure(this, &RpcSessionManager::OnSessionTimeout, node),
+         &node->timer_owner);
+  } else {
+    env_.timerw()->ResetTimer(node->timer_owner,
+                              env_.opt().default_rpc_timeout);
+  }
+  node->endpoint_index = 0;
   node->endpoint_list = endpoint_list;
-  // todo: set timer
   on_send_request_(method, *request, node->rpc_id,
-                   endpoint_list.GetEndpoint(0));
+                   node->endpoint_list.GetEndpoint(0));
   return true;
+}
+
+void RpcSessionManager::OnSendRequestFailed(uint64_t rpc_id)
+{
+  SessionNode* node = FindSessionNode(rpc_id);
+  if (!node) {
+    ILOG("OnSentResult: cannot find session node");
+    return;
+  }
+  if (++node->endpoint_index < node->endpoint_list.size()) {
+    // try next endpoint
+    on_send_request_(node->method, *node->request, node->rpc_id,
+                     node->endpoint_list.GetEndpoint(node->endpoint_index));
+  } else {
+    // all endpoints failed before session timeout
+    DLOG("all endpoints timeout");
+    node->done(kTimeout);
+    node->timer_owner.Cancel();
+    FreeSessionNode(node);
+  }
 }
 
 void RpcSessionManager::OnRecvResponse(const std::string& service,
@@ -109,10 +142,24 @@ void RpcSessionManager::OnRecvResponse(const std::string& service,
     return;
   }
   // rpc done callback
+  DLOG("rpc done with response result:%d", static_cast<int>(rpc_result));
   node->done(rpc_result);
   // cleanup
   node->timer_owner.Cancel();
   FreeSessionNode(node);
+}
+
+void RpcSessionManager::OnSessionTimeout(SessionNode* node)
+{
+  // rpc_id == 0 happens only when last-endpoint-timeout and session-timeout
+  // occur at the same time, that is, timer callbacks launched at the same 
+  // ccb::TimerWheel tick and the former one calling timer_owner.Cancel() 
+  // does not really cancel the latter one
+  DLOG("RPC session timeout rpc_id:%lu", node->rpc_id);
+  if (node->rpc_id) {
+    node->done(kTimeout);
+    FreeSessionNode(node);
+  }
 }
 
 RpcSessionManager::SessionNode* RpcSessionManager::AllocSessionNode()
@@ -143,7 +190,10 @@ RpcSessionManager::SessionNode* RpcSessionManager::FindSessionNode(
 
 void RpcSessionManager::FreeSessionNode(SessionNode* node)
 {
+  // reset to zero means node freed
   node->rpc_id = 0;
+  // free memory of closure in time
+  node->done = nullptr;
 }
 
 } // namespace hrpc

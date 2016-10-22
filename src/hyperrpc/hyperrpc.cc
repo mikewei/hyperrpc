@@ -23,8 +23,9 @@ public:
                   ::ccb::ClosureFunc<void(Result)>& done);
 private:
   Service* OnFindService(const std::string& service_name);
-  void OnSendPacket(const Buf& buf, const Addr& addr);
+  void OnSendPacket(const Buf& buf, const Addr& addr, void* ctx);
   void OnRecvPacket(const Buf& buf, const Addr& addr);
+  void OnSentResult(hudp::Result, void* ctx);
 
   Env env_;
   hudp::HyperUdp hyper_udp_;
@@ -69,7 +70,7 @@ bool HyperRpc::Impl::Start(const Addr& bind_local_addr)
   RpcCore::OnFindService on_find_service {
     ccb::BindClosure(this, &HyperRpc::Impl::OnFindService)
   };
-  size_t worker_num = env_.opt().worker_num;
+  size_t worker_num = env_.opt().hudp_options.worker_num;
   for (size_t i = 0; i < worker_num; i++) {
     rpc_core_vec_.emplace_back(new RpcCore(env_));
     if (!rpc_core_vec_[i]->Init(i, on_send_packet,
@@ -81,7 +82,8 @@ bool HyperRpc::Impl::Start(const Addr& bind_local_addr)
   }
   // initialize HyperUdp
   if (!hyper_udp_.Init(bind_local_addr,
-                       ccb::BindClosure(this, &HyperRpc::Impl::OnRecvPacket)))
+                       ccb::BindClosure(this, &HyperRpc::Impl::OnRecvPacket),
+                       ccb::BindClosure(this, &HyperRpc::Impl::OnSentResult)))
   {
     rpc_core_vec_.clear();
     return false;
@@ -101,9 +103,9 @@ Service* HyperRpc::Impl::OnFindService(const std::string& service_name)
   }
 }
 
-void HyperRpc::Impl::OnSendPacket(const Buf& buf, const Addr& addr)
+void HyperRpc::Impl::OnSendPacket(const Buf& buf, const Addr& addr, void* ctx)
 {
-  hyper_udp_.Send(buf, addr);
+  hyper_udp_.Send(buf, addr, ctx);
 }
 
 void HyperRpc::Impl::OnRecvPacket(const Buf& buf, const Addr& addr)
@@ -111,7 +113,7 @@ void HyperRpc::Impl::OnRecvPacket(const Buf& buf, const Addr& addr)
   size_t cur_core_id = ccb::Worker::self()->id();
   size_t dst_core_id = rpc_core_vec_[cur_core_id]->OnRecvPacket(buf, addr);
   if (dst_core_id != cur_core_id) {
-    // cross thread redirect
+    // cross thread dispatch
     size_t redirect_buf_len = buf.len();
     void*  redirect_buf_ptr = env_.alloc().Alloc(redirect_buf_len);
     memcpy(static_cast<char*>(redirect_buf_ptr), buf.ptr(), buf.len());
@@ -123,6 +125,25 @@ void HyperRpc::Impl::OnRecvPacket(const Buf& buf, const Addr& addr)
       // worker-queue overflow
       WLOG("OnRecvPacket PostTask failed because of worker-queue overflow!");
       env_.alloc().Free(redirect_buf_ptr, redirect_buf_len);
+    }
+  }
+}
+
+void HyperRpc::Impl::OnSentResult(hudp::Result result, void* ctx)
+{
+  if (result == hudp::R_SUCCESS) {
+    // nothing need to do when success
+    return;
+  }
+  size_t cur_core_id = ccb::Worker::self()->id();
+  size_t dst_core_id = rpc_core_vec_[cur_core_id]->OnSendPacketFailed(ctx);
+  if (dst_core_id != cur_core_id) {
+    // cross thread dispatch
+    if (!ccb::Worker::self()->worker_group()->PostTask(dst_core_id, [=] {
+      rpc_core_vec_[dst_core_id]->OnSendPacketFailed(ctx);
+    })) {
+      // worker-queue overflow
+      WLOG("OnSentResult PostTask failed because of worker-queue overflow!");
     }
   }
 }

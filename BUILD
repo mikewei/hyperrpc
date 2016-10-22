@@ -58,6 +58,17 @@ cc_binary(
   malloc = "//third_party/jemalloc-360"
 )
 
+cc_hrpc_proto_library(
+  name = "test_message",
+  include = "test",
+  srcs = glob(["test/*.proto"]),
+  deps = [],
+  use_hrpc_plugin = True,
+  copts = ["-O2"],
+  nocopts = "-fPIC",
+  linkstatic = 1,
+)
+
 cc_test(
   name = "test",
   copts = [
@@ -71,6 +82,7 @@ cc_test(
   srcs = glob(["test/*_test.cc"]),
   deps = [
     ":hyperrpc",
+    ":test_message",
     "//gtestx",
   ],
   malloc = "//third_party/jemalloc-360"
@@ -78,8 +90,12 @@ cc_test(
 
 cc_hrpc_proto_library(
   name = "rpc_example_proto",
+  include = "example",
   srcs = glob(["example/*.proto"]),
   deps = [],
+  use_hrpc_plugin = True,
+  copts = ["-O2"],
+  nocopts = "-fPIC",
   linkstatic = 1,
 )
 

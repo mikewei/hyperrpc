@@ -76,7 +76,7 @@ enum Result
   kInError = 5, // other internal errors
 };
 
-class OptionsBuilder : public ::hudp::OptionsBuilder
+class OptionsBuilder
 {
 public:
   OptionsBuilder();
@@ -91,7 +91,35 @@ public:
    */
   Options Build();
 
+  /* Set the log level and log handler
+   * @lv      only logs with level <= @lv will be handled
+   * @f       callback to output logs
+   *
+   * This method allows you to use any logger library you want to ouput the 
+   * log from HyperUdp. By default no log will be ouput in any way.
+   *
+   * @return  self reference as Builder-Pattern
+   */
+  OptionsBuilder& LogHandler(LogLevel lv, 
+                             ccb::ClosureFunc<void(LogLevel, const char*)> f);
+
+  /* Set number of worker threads
+   * @num     number of worker threads
+   *
+   * Proper number of worker threads can get best permformance on modern 
+   * multi-core system. Normally the best number is between 2 and CORES.
+   *
+   * @return  self reference as Builder-Pattern
+   */
+  OptionsBuilder& WorkerNumber(size_t num);
+  OptionsBuilder& WorkerQueueSize(size_t num);
+
   OptionsBuilder& MaxRpcSessions(size_t num);
+  OptionsBuilder& DefaultRpcTimeout(size_t ms);
+
+  ::hudp::OptionsBuilder& hudp_options() {
+    return hudp_opt_builder_;
+  }
 
 private:
   // not copyable and movable
@@ -100,6 +128,7 @@ private:
   OptionsBuilder(OptionsBuilder&&) = delete;
   void operator=(OptionsBuilder&&) = delete;
 
+  ::hudp::OptionsBuilder hudp_opt_builder_;
   std::unique_ptr<Options> hrpc_opt_;
 };
 

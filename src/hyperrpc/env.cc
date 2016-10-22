@@ -38,7 +38,7 @@
 namespace hrpc {
 
 Env::Env(const Options& opt, ccb::TimerWheel* tw)
-  : hudp::Env(opt, tw)
+  : hudp::Env(opt.hudp_options, tw)
   , hrpc_opt_(opt)
 {
 }

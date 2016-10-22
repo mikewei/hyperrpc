@@ -42,14 +42,11 @@ static google::protobuf::ArenaOptions BuildArenaOptions(char* init_block,
 
 IncomingRpcContext::IncomingRpcContext(
                         const google::protobuf::MethodDescriptor* method,
-                        const google::protobuf::Message& req_prot,
-                        const google::protobuf::Message& resp_prot,
                         uint64_t rpc_id,
                         const Addr& addr)
-  : arena_(BuildArenaOptions(arena_buf_, sizeof(arena_buf_)))
-  , method_(method)
-  , request_(req_prot.New(&arena_))
-  , response_(resp_prot.New(&arena_))
+  : method_(method)
+  , request_(nullptr)
+  , response_(nullptr)
   , rpc_id_(rpc_id)
   , addr_(addr)
 {
@@ -57,6 +54,33 @@ IncomingRpcContext::IncomingRpcContext(
 
 IncomingRpcContext::~IncomingRpcContext()
 {
+}
+
+void IncomingRpcContext::Init(const google::protobuf::Message& req_prot,
+                              const google::protobuf::Message& resp_prot)
+{
+  request_ = req_prot.New();
+  response_ = resp_prot.New();
+}
+
+ArenaIncomingRpcContext::ArenaIncomingRpcContext(
+                           const google::protobuf::MethodDescriptor* method,
+                           uint64_t rpc_id,
+                           const Addr& addr)
+  : IncomingRpcContext(method, rpc_id, addr)
+  , arena_(BuildArenaOptions(arena_buf_, sizeof(arena_buf_)))
+{
+}
+
+ArenaIncomingRpcContext::~ArenaIncomingRpcContext()
+{
+}
+
+void ArenaIncomingRpcContext::Init(const google::protobuf::Message& req_prot,
+                                   const google::protobuf::Message& resp_prot)
+{
+  request_ = req_prot.New(&arena_);
+  response_ = resp_prot.New(&arena_);
 }
 
 } // namespace hrpc

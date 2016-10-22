@@ -36,7 +36,7 @@
 namespace hrpc {
 
 #define GFLAGS_DEFINE(name, type, deft, desc) \
-  DEFINE_##type(hudp_##name, deft, desc)
+  DEFINE_##type(hrpc_##name, deft, desc)
 #define GFLAGS_DEFINE_U64(name, desc) GFLAGS_DEFINE(name, uint64, 0, desc)
 #define GFLAGS_DEFINE_STR(name, desc) GFLAGS_DEFINE(name, string, "", desc)
 #define GFLAGS_DEFINE_BOOL(name, desc) GFLAGS_DEFINE(name, bool, false, desc)
@@ -45,16 +45,23 @@ namespace hrpc {
   google::CommandLineFlagInfo info; \
   if (google::GetCommandLineFlagInfo("hrpc_" #name, &info) \
       && !info.is_default) { \
-    setter(FLAGS_hudp_##name); \
+    setter(FLAGS_hrpc_##name); \
   } \
 } while(0)
 
 // WorkerGroup options
-//GFLAGS_DEFINE_U64(worker_num, "number of worker threads");
+GFLAGS_DEFINE_U64(worker_num, "number of worker threads");
+GFLAGS_DEFINE_U64(worker_queue_size, "size of queue consumed by worker");
+// RpcSessionManager options
+GFLAGS_DEFINE_U64(max_rpc_sessions, "max number of pending RPC sessions");
+GFLAGS_DEFINE_U64(default_rpc_timeout, "default RPC session timeout (ms)");
 
 OptionsBuilder::OptionsBuilder()
   : hrpc_opt_(new Options)
 {
+  // RpcSessionManager options
+  MaxRpcSessions(1000000);
+  DefaultRpcTimeout(2500);
 }
 
 OptionsBuilder::~OptionsBuilder()
@@ -63,17 +70,54 @@ OptionsBuilder::~OptionsBuilder()
 
 Options OptionsBuilder::Build()
 {
-  static_cast<hudp::Options&>(*hrpc_opt_) = hudp::OptionsBuilder::Build();
+  GFLAGS_MAY_OVERRIDE(worker_num, WorkerNumber);
+  GFLAGS_MAY_OVERRIDE(worker_queue_size, WorkerQueueSize);
+  GFLAGS_MAY_OVERRIDE(max_rpc_sessions, MaxRpcSessions);
+  GFLAGS_MAY_OVERRIDE(default_rpc_timeout, DefaultRpcTimeout);
+  hrpc_opt_->hudp_options = hudp_opt_builder_.Build();
   return *hrpc_opt_;
 }
 
+// Utility options
+
+OptionsBuilder& OptionsBuilder::LogHandler(LogLevel lv, 
+                     ccb::ClosureFunc<void(LogLevel, const char*)> f)
+{
+  hudp_opt_builder_.LogHandler(lv, std::move(f));
+  return *this;
+}
+
+// WorkerGroup options
+
+OptionsBuilder& OptionsBuilder::WorkerNumber(size_t num)
+{
+  hudp_opt_builder_.WorkerNumber(num);
+  return *this;
+}
+
+OptionsBuilder& OptionsBuilder::WorkerQueueSize(size_t num)
+{
+  hudp_opt_builder_.WorkerQueueSize(num);
+  return *this;
+}
+
 // RpcSessionManager options
+
 OptionsBuilder& OptionsBuilder::MaxRpcSessions(size_t num)
 {
-  if (num < hrpc_opt_->worker_num) {
+  if (num < hrpc_opt_->hudp_options.worker_num) {
     throw std::invalid_argument("Invalid value!");
   }
   hrpc_opt_->max_rpc_sessions = num;
+  return *this;
+}
+
+OptionsBuilder& OptionsBuilder::DefaultRpcTimeout(size_t ms)
+{
+  if (ms > std::numeric_limits<uint32_t>::max() || ms <= 0) {
+    throw std::invalid_argument("Invalid timeout value!");
+  }
+  hrpc_opt_->default_rpc_timeout = ms;
   return *this;
 }
 

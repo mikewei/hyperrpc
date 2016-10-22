@@ -42,7 +42,7 @@ class IncomingRpcContext;
 class RpcCore
 {
 public:
-  using OnSendPacket = ccb::ClosureFunc<void(const Buf&, const Addr&)>;
+  using OnSendPacket = ccb::ClosureFunc<void(const Buf&, const Addr&, void*)>;
   using OnFindService = ccb::ClosureFunc<Service*(const std::string&)>;
   using OnServiceRouting = HyperRpc::OnServiceRouting;
 
@@ -57,19 +57,22 @@ public:
                   google::protobuf::Message* response,
                   ccb::ClosureFunc<void(Result)> done);
   size_t OnRecvPacket(const Buf& buf, const Addr& addr);
+  size_t OnSendPacketFailed(void* ctx);
 
 private:
   void OnRecvRequestMessage(const RpcHeader& header,
                             const Buf& body, const Addr& addr);
   void OnRecvResponseMessage(const RpcHeader& header,
                              const Buf& body, const Addr& addr);
-  void OnIncomingRpcDone(const IncomingRpcContext* rpc, Result result);
+  void OnIncomingRpcDone(const IncomingRpcContext* ctx, Result result);
   void OnOutgoingRpcSend(const google::protobuf::MethodDescriptor* method,
                          const google::protobuf::Message& request,
                          uint64_t rpc_id, const Addr& addr);
   void SendMessage(const RpcHeader& header,
                    const google::protobuf::Message& body,
-                   const Addr& addr);
+                   const Addr& addr,
+                   void* ctx);
+  bool GetCoreIdFromRpcId(uint64_t rpc_id, size_t* rpc_core_id);
 
   // not copyable and movable
   RpcCore(const RpcCore&) = delete;

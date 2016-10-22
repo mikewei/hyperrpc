@@ -1,0 +1,19 @@
+syntax = "proto2";
+option cc_enable_arenas = true;
+
+message TestRequest
+{
+  optional uint64 id = 1;
+  optional string param = 2;
+}
+
+message TestResponse
+{
+  optional uint64 id = 1;
+  optional string value = 2;
+}
+
+service TestService
+{
+  rpc Query(TestRequest) returns (TestResponse);
+}
