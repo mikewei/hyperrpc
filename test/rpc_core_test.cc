@@ -4,16 +4,20 @@
 #include "hyperrpc/rpc_core.h"
 #include "test_message.hrpc.pb.h"
 
+namespace {
+
 class TestServiceImpl : public TestService
 {
 protected:
-  void Query(const TestRequest* request, TestResponse* response,
-             ccb::ClosureFunc<void(hrpc::Result)> done) {
+  virtual void Query(const TestRequest* request, TestResponse* response,
+                     hrpc::DoneFunc done) override {
     response->set_id(request->id());
     response->set_value(request->param());
     done(hrpc::kSuccess);
   }
 };
+
+} // namespace
 
 class RpcCoreTest : public testing::Test
 {
