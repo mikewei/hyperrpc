@@ -1,5 +1,6 @@
 #include <unordered_map>
 #include <google/protobuf/descriptor.h>
+#include <ccbase/eventfd.h>
 #include "hyperrpc/hyperrpc.h"
 #include "hyperrpc/env.h"
 #include "hyperrpc/service.h"
@@ -17,10 +18,10 @@ public:
   bool InitAsServer(std::vector<Service*>& services);
   bool Start(const Addr& bind_local_addr);
 
-  void CallMethod(const ::google::protobuf::MethodDescriptor* method,
-                  const ::google::protobuf::Message* request,
-                  ::google::protobuf::Message* response,
-                  ::ccb::ClosureFunc<void(Result)>& done);
+  Result CallMethod(const ::google::protobuf::MethodDescriptor* method,
+                    const ::google::protobuf::Message* request,
+                    ::google::protobuf::Message* response,
+                    DoneFunc done);
 private:
   Service* OnFindService(const std::string& service_name);
   void OnSendPacket(const Buf& buf, const Addr& addr, void* ctx);
@@ -148,31 +149,53 @@ void HyperRpc::Impl::OnSentResult(hudp::Result result, void* ctx)
   }
 }
 
-void HyperRpc::Impl::CallMethod(
-                  const ::google::protobuf::MethodDescriptor* method,
-                  const ::google::protobuf::Message* request,
-                  ::google::protobuf::Message* response,
-                  ::ccb::ClosureFunc<void(Result)>& done)
+Result HyperRpc::Impl::CallMethod(
+                       const ::google::protobuf::MethodDescriptor* method,
+                       const ::google::protobuf::Message* request,
+                       ::google::protobuf::Message* response,
+                       DoneFunc done)
 {
   HRPC_ASSERT(is_initialized_);
+  Result rpc_result = kSuccess;
   ccb::WorkerGroup* worker_group = hyper_udp_.GetWorkerGroup();
+  bool is_sync = !done;
   if (worker_group->is_current_thread()) {
+    if (is_sync) {
+      // currently sync call is not allowed in worker thread
+      // todo: using coroutine support sync call
+      return kInError;
+    }
     // dispatch in current worker-thread
     size_t rpc_core_id = ccb::Worker::self()->id();
     rpc_core_vec_[rpc_core_id]->CallMethod(method, request, response,
                                            std::move(done));
   } else {
+    static thread_local ccb::EventFd evfd;
+    ccb::EventFd* pevfd = &evfd;
+    if (is_sync) {
+      // set inner closure if sync call
+      done = [&rpc_result, pevfd](Result result) {
+        rpc_result = result;
+        pevfd->Notify();
+      };
+    }
     // dispatch to a worker-thread of worker-group
-    if (!worker_group->PostTask([=] {
+    if (!worker_group->PostTask([this, method, request, response, done] {
       size_t rpc_core_id = ccb::Worker::self()->id();
       rpc_core_vec_[rpc_core_id]->CallMethod(method, request, response,
                                              std::move(done));
     })) {
       // worker-queue overflow
       WLOG("CallMethod PostTask failed because of worker-queue overflow!");
-      done(kInError);
+      if (done) done(kInError);
+      else rpc_result = kInError;
+    }
+    if (is_sync) {
+      // wait for done if sync call
+      evfd.GetWait();
     }
   }
+  return rpc_result;
 }
 
 //------------------------- class HyperRpc -----------------------------
@@ -206,12 +229,12 @@ bool HyperRpc::Start(const Addr& bind_local_addr)
   return pimpl_->Start(bind_local_addr);
 }
 
-void HyperRpc::CallMethod(const ::google::protobuf::MethodDescriptor* method,
-                          const ::google::protobuf::Message* request,
-                          ::google::protobuf::Message* response,
-                          ::ccb::ClosureFunc<void(Result)> done)
+Result HyperRpc::CallMethod(const ::google::protobuf::MethodDescriptor* method,
+                            const ::google::protobuf::Message* request,
+                            ::google::protobuf::Message* response,
+                            ::ccb::ClosureFunc<void(Result)> done)
 {
-  pimpl_->CallMethod(method, request, response, done);
+  return pimpl_->CallMethod(method, request, response, std::move(done));
 }
 
 } // namespace hrpc

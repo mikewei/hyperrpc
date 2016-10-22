@@ -161,10 +161,10 @@ public:
   bool Start(const Addr& bind_local_addr);
 
   // this method is called by generated service stub
-  void CallMethod(const ::google::protobuf::MethodDescriptor* method,
-                  const ::google::protobuf::Message* request,
-                  ::google::protobuf::Message* response,
-                  DoneFunc done);
+  Result CallMethod(const ::google::protobuf::MethodDescriptor* method,
+                    const ::google::protobuf::Message* request,
+                    ::google::protobuf::Message* response,
+                    DoneFunc done);
 
 private:
   // not copyable and movable

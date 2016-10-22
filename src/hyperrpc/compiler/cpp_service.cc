@@ -148,11 +148,22 @@ void CppServiceGenerator::GenerateMethodSignatures(bool is_virtual,
     sub_vars["output_type"] = ClassName(method->output_type(), true);
     sub_vars["virtual"] = (is_virtual ? "virtual " : "");
 
+    if (!is_virtual) {
+      printer->Print(
+        "// async stub method\n");
+    }
     printer->Print(sub_vars,
       "$virtual$void $name$(\n"
       "    const $input_type$* request,\n"
       "    $output_type$* response,\n"
       "    ::hrpc::DoneFunc done);\n");
+    if (!is_virtual) {
+      printer->Print(sub_vars,
+        "// sync stub method\n"
+        "::hrpc::Result $name$(\n"
+        "    const $input_type$& request,\n"
+        "    $output_type$* response);\n");
+    }
   }
 }
 
@@ -313,8 +324,15 @@ void CppServiceGenerator::GenerateStubMethods(io::Printer* printer)
       "    const $input_type$* request,\n"
       "    $output_type$* response,\n"
       "    ::hrpc::DoneFunc done) {\n"
+      "  hrpc_->CallMethod(descriptor()->method($index$),\n"
+      "                    request, response, std::move(done));\n"
+      "}\n");
+    printer->Print(sub_vars,
+      "::hrpc::Result $classname$_Stub::$name$(\n"
+      "    const $input_type$& request,\n"
+      "    $output_type$* response) {\n"
       "  return hrpc_->CallMethod(descriptor()->method($index$),\n"
-      "                           request, response, std::move(done));\n"
+      "                           &request, response, nullptr);\n"
       "}\n");
   }
 }
