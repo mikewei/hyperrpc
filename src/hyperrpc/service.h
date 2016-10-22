@@ -54,7 +54,7 @@ public:
   virtual void CallMethod(const ::google::protobuf::MethodDescriptor* method,
                           const ::google::protobuf::Message* request,
                           ::google::protobuf::Message* response,
-                          ::ccb::ClosureFunc<void(Result)> done) = 0;
+                          DoneFunc done) = 0;
 
   virtual const ::google::protobuf::Message& GetRequestPrototype(
                 const ::google::protobuf::MethodDescriptor* method) const = 0;

@@ -85,7 +85,7 @@ void CppServiceGenerator::GenerateDeclarations(io::Printer* printer)
     "    const ::google::protobuf::MethodDescriptor* method,\n"
     "    const ::google::protobuf::Message* request,\n"
     "    ::google::protobuf::Message* response,\n"
-    "    ::ccb::ClosureFunc<void(::hrpc::Result)> done);\n"
+    "    ::hrpc::DoneFunc done);\n"
     "const ::google::protobuf::Message& GetRequestPrototype(\n"
     "    const ::google::protobuf::MethodDescriptor* method) const;\n"
     "const ::google::protobuf::Message& GetResponsePrototype(\n"
@@ -152,7 +152,7 @@ void CppServiceGenerator::GenerateMethodSignatures(bool is_virtual,
       "$virtual$void $name$(\n"
       "    const $input_type$* request,\n"
       "    $output_type$* response,\n"
-      "    ::ccb::ClosureFunc<void(::hrpc::Result)> done);\n");
+      "    ::hrpc::DoneFunc done);\n");
   }
 }
 
@@ -212,7 +212,7 @@ void CppServiceGenerator::GenerateNotImplementedMethods(io::Printer* printer)
       "void $classname$::$methodname$(\n"
       "    const $input_type$*,\n"
       "    $output_type$*,\n"
-      "    ::ccb::ClosureFunc<void(::hrpc::Result)> done) {\n"
+      "    ::hrpc::DoneFunc done) {\n"
       "  done(::hrpc::kNotImpl);\n"
       "}\n"
       "\n");
@@ -226,7 +226,7 @@ void CppServiceGenerator::GenerateCallMethod(io::Printer* printer)
     "    const ::google::protobuf::MethodDescriptor* method,\n"
     "    const ::google::protobuf::Message* request,\n"
     "    ::google::protobuf::Message* response,\n"
-    "    ::ccb::ClosureFunc<void(::hrpc::Result)> done) {\n"
+    "    ::hrpc::DoneFunc done) {\n"
     "  GOOGLE_DCHECK_EQ(method->service(), $classname$_descriptor_);\n"
     "  switch(method->index()) {\n");
 
@@ -312,7 +312,7 @@ void CppServiceGenerator::GenerateStubMethods(io::Printer* printer)
       "void $classname$_Stub::$name$(\n"
       "    const $input_type$* request,\n"
       "    $output_type$* response,\n"
-      "    ::ccb::ClosureFunc<void(::hrpc::Result)> done) {\n"
+      "    ::hrpc::DoneFunc done) {\n"
       "  return hrpc_->CallMethod(descriptor()->method($index$),\n"
       "                           request, response, std::move(done));\n"
       "}\n");

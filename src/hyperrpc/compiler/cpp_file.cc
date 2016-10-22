@@ -85,8 +85,7 @@ void CppFileGenerator::GenerateSource(io::Printer* printer)
     "header", header);
 
   printer->Print(
-    "#include <google/protobuf/descriptor.h>\n"
-    "#include <hyperrpc/hyperrpc.h>\n");
+    "#include <google/protobuf/descriptor.h>\n");
 
   GenerateNamespaceOpeners(printer);
 

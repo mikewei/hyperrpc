@@ -76,6 +76,10 @@ enum Result
   kInError = 5, // other internal errors
 };
 
+/* RPC closure type
+ */
+using DoneFunc = ::ccb::ClosureFunc<void(Result)>;
+
 class OptionsBuilder
 {
 public:
@@ -160,7 +164,7 @@ public:
   void CallMethod(const ::google::protobuf::MethodDescriptor* method,
                   const ::google::protobuf::Message* request,
                   ::google::protobuf::Message* response,
-                  ::ccb::ClosureFunc<void(Result)> done);
+                  DoneFunc done);
 
 private:
   // not copyable and movable
