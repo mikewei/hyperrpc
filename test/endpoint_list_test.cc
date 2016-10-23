@@ -82,8 +82,23 @@ TEST_F(EndpointListTest, CopyConstruct)
     endpoint_list_.PushBack({"127.0.0.1", static_cast<uint16_t>(i)});
   }
   hrpc::EndpointList copy(endpoint_list_);
+  ASSERT_EQ(1000, copy.size());
+  ASSERT_EQ(1000, endpoint_list_.size());
+  for (size_t i = 0; i < 1000; i++) {
+    ASSERT_EQ(hrpc::Addr("127.0.0.1", i), copy.GetEndpoint(i));
+    ASSERT_EQ(hrpc::Addr("127.0.0.1", i), endpoint_list_.GetEndpoint(i));
+  }
+}
+
+TEST_F(EndpointListTest, MoveConstruct)
+{
+  for (size_t i = 0; i < 1000; i++) {
+    endpoint_list_.PushBack({"127.0.0.1", static_cast<uint16_t>(i)});
+  }
+  hrpc::EndpointList copy(std::move(endpoint_list_));
   for (size_t i = 0; i < 1000; i++) {
     ASSERT_EQ(hrpc::Addr("127.0.0.1", i), copy.GetEndpoint(i));
   }
+  ASSERT_TRUE(endpoint_list_.empty());
 }
 

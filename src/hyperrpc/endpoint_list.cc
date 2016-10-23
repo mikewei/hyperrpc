@@ -41,6 +41,11 @@ EndpointList::EndpointList()
 {
 }
 
+EndpointList::~EndpointList()
+{
+  Clear();
+}
+
 EndpointList::EndpointList(const EndpointList& other)
   : size_(0), list_in_heap_(nullptr)
 {
@@ -61,9 +66,29 @@ EndpointList::EndpointList(const EndpointList& other)
   size_ = other.size_;
 }
 
-EndpointList::~EndpointList()
+EndpointList& EndpointList::operator=(const EndpointList& other)
 {
-  Clear();
+  this->~EndpointList();
+  new (this) EndpointList(other);
+  return *this;
+}
+
+EndpointList::EndpointList(EndpointList&& other)
+{
+  for (size_t i = 0; i < other.size_ && i < kListCacheSize; i++) {
+    list_cache_[i] = other.list_cache_[i];
+  }
+  list_in_heap_ = other.list_in_heap_;
+  other.list_in_heap_ = nullptr;
+  size_ = other.size_;
+  other.size_ = 0;
+}
+
+EndpointList& EndpointList::operator=(EndpointList&& other)
+{
+  this->~EndpointList();
+  new (this) EndpointList(std::move(other));
+  return *this;
 }
 
 void EndpointList::PushBack(const Addr& endpoint)

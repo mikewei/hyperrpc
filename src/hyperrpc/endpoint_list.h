@@ -34,14 +34,16 @@
 
 namespace hrpc {
 
-using ::hudp::Addr;
-
 class EndpointList
 {
 public:
   EndpointList();
-  EndpointList(const EndpointList& other);
   ~EndpointList() ;
+
+  EndpointList(const EndpointList& other);
+  EndpointList& operator=(const EndpointList& other);
+  EndpointList(EndpointList&& other);
+  EndpointList& operator=(EndpointList&& other);
 
   void PushBack(const Addr& endpoint);
   void Clear();
