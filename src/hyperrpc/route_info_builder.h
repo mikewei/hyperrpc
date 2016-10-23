@@ -27,46 +27,29 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _HRPC_ENDPOINT_LIST_H
-#define _HRPC_ENDPOINT_LIST_H
+#ifndef _HRPC_ROUTE_INFO_BUILDER_H
+#define _HRPC_ROUTE_INFO_BUILDER_H
 
 #include "hyperrpc/hyperrpc.h"
 
 namespace hrpc {
 
-using ::hudp::Addr;
+class Addr;
+class EndpointList;
 
-class EndpointList
+class RouteInfoBuilderImpl : public RouteInfoBuilder
 {
 public:
-  EndpointList();
-  EndpointList(const EndpointList& other);
-  ~EndpointList() ;
+  RouteInfoBuilderImpl(EndpointList* endpoint_list);
+  virtual ~RouteInfoBuilderImpl() override;
 
-  void PushBack(const Addr& endpoint);
-  void Clear();
-  Addr GetEndpoint(size_t index) const;
-
-  size_t size() const {
-    return size_;
-  }
-  bool empty() const {
-    return size_ == 0;
-  }
+  virtual void AddEndpoint(const Addr& endpoint) override;
 
 private:
-  struct Endpoint {
-    uint32_t ip;
-    uint16_t port;
-  };
-  static constexpr size_t kListCacheSize = 3;
-  static constexpr size_t kListInHeapInitSize = (1UL << 2);
-
-  size_t size_;
-  Endpoint list_cache_[kListCacheSize];
-  Endpoint* list_in_heap_;
+  EndpointList* endpoint_list_;
 };
+
 
 } // namespace hrpc
 
-#endif // _HRPC_ENDPOINT_LIST_H
+#endif // _HRPC_ROUTE_INFO_BUILDER_H

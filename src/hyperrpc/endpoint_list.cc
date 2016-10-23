@@ -115,30 +115,4 @@ Addr EndpointList::GetEndpoint(size_t index) const
   }
 }
 
-//-------------------- class EndpointListBuilderImpl -----------------------
-
-EndpointListBuilderImpl::EndpointListBuilderImpl(EndpointList* endpoint_list)
-  : endpoint_list_(endpoint_list)
-{
-}
-
-EndpointListBuilderImpl::~EndpointListBuilderImpl()
-{
-}
-
-void EndpointListBuilderImpl::PushBack(const Addr& endpoint)
-{
-  endpoint_list_->PushBack(endpoint);
-}
-
-void EndpointListBuilderImpl::Clear()
-{
-  endpoint_list_->Clear();
-}
-
-size_t EndpointListBuilderImpl::Size() const
-{
-  return endpoint_list_->size();
-}
-
 } // namespace hrpc

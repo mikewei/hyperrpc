@@ -64,10 +64,11 @@ protected:
   }
 
   bool OnServiceRouting(const std::string& service, const std::string& method,
-                        hrpc::EndpointListBuilder* out) {
+                        const google::protobuf::Message& request,
+                        hrpc::RouteInfoBuilder* out) {
     static hrpc::Addr addr{"127.0.0.1", 1234};
-    out->PushBack(addr);
-    out->PushBack(addr);
+    out->AddEndpoint(addr);
+    out->AddEndpoint(addr);
     return true;
   }
 

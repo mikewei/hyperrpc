@@ -136,22 +136,22 @@ private:
   std::unique_ptr<Options> hrpc_opt_;
 };
 
-class EndpointListBuilder
+class RouteInfoBuilder
 {
 public:
-  virtual void PushBack(const Addr& endpoint) = 0;
-  virtual void Clear() = 0;
-  virtual size_t Size() const = 0;
+  virtual void AddEndpoint(const Addr& endpoint) = 0;
 protected:
-  virtual ~EndpointListBuilder() {}
+  virtual ~RouteInfoBuilder() {}
 };
 
 class HyperRpc
 {
 public:
-  using OnServiceRouting = ::ccb::ClosureFunc<bool(const std::string& service,
-                                                   const std::string& method,
-                                                   EndpointListBuilder* out)>;
+  using OnServiceRouting = ::ccb::ClosureFunc<
+                           bool(const std::string& service,
+                                const std::string& method,
+                                const ::google::protobuf::Message& request,
+                                RouteInfoBuilder* out)>;
   HyperRpc();
   HyperRpc(const Options& opt);
   virtual ~HyperRpc();

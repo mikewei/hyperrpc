@@ -37,8 +37,9 @@ protected:
 
   bool OnServiceRouting(const std::string& service,
                         const std::string& method,
-                        hrpc::EndpointListBuilder* out) {
-    out->PushBack(addr_);
+                        const google::protobuf::Message& request,
+                        hrpc::RouteInfoBuilder* out) {
+    out->AddEndpoint(addr_);
     return true;
   }
 
