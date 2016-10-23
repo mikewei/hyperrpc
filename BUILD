@@ -100,7 +100,7 @@ cc_hrpc_proto_library(
 )
 
 cc_binary(
-  name = "rpc_server",
+  name = "stress_profile_server",
   copts = [
     "-g",
     "-O2",
@@ -108,15 +108,16 @@ cc_binary(
   ],
   nocopts = "-fPIC",
   linkstatic = 1,
-  srcs = ["example/rpc_server.cc"],
+  srcs = ["example/stress_profile_server.cc"],
   deps = [
     ":hyperrpc",
+    ":rpc_example_proto",
   ],
   malloc = "//third_party/jemalloc-360"
 )
 
 cc_binary(
-  name = "rpc_client",
+  name = "stress_profile_client",
   copts = [
     "-g",
     "-O2",
@@ -124,9 +125,10 @@ cc_binary(
   ],
   nocopts = "-fPIC",
   linkstatic = 1,
-  srcs = ["example/rpc_client.cc"],
+  srcs = ["example/stress_profile_client.cc"],
   deps = [
     ":hyperrpc",
+    ":rpc_example_proto",
   ],
   malloc = "//third_party/jemalloc-360"
 )

@@ -1,4 +1,5 @@
 syntax = "proto3";
+option cc_enable_arenas = true;
 
 package hrpc.example;
 
@@ -16,5 +17,5 @@ message ProfileResponse
 
 service ProfileService
 {
-  rpc GetProfile(ProfileResponse) returns(ProfileResponse);
+  rpc GetProfile(ProfileRequest) returns(ProfileResponse);
 }
