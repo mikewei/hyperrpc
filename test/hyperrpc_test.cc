@@ -24,11 +24,12 @@ class HyperRpcTest : public testing::Test
 protected:
 
   virtual void SetUp() {
+    addr_list_.emplace_back("127.0.0.1", 17777);
     service_ = new TestServiceImpl;
     ASSERT_TRUE(hyper_rpc_.InitAsClient(
                 ccb::BindClosure(this, &HyperRpcTest::OnServiceRouting)));
     ASSERT_TRUE(hyper_rpc_.InitAsServer({service_}));
-    ASSERT_TRUE(hyper_rpc_.Start(addr_));
+    ASSERT_TRUE(hyper_rpc_.Start(addr_list_[0]));
   }
 
   virtual void TearDown() {
@@ -39,13 +40,15 @@ protected:
                         const std::string& method,
                         const google::protobuf::Message& request,
                         hrpc::RouteInfoBuilder* out) {
-    out->AddEndpoint(addr_);
+    for (auto& addr : addr_list_) {
+      out->AddEndpoint(addr);
+    }
     return true;
   }
 
   hrpc::HyperRpc hyper_rpc_;
   hrpc::Service* service_;
-  const hrpc::Addr addr_ = {"127.0.0.1", 17777};
+  std::vector<hrpc::Addr> addr_list_;
 };
 
 TEST_F(HyperRpcTest, AsyncCall)
@@ -71,6 +74,30 @@ TEST_F(HyperRpcTest, AsyncCall)
 
 TEST_F(HyperRpcTest, SyncCall)
 {
+  TestService::Stub test_service(&hyper_rpc_);
+  TestRequest request;
+  request.set_id(10000);
+  request.set_param("hello");
+  TestResponse response;
+  ASSERT_EQ(hrpc::kSuccess, test_service.Query(request, &response));
+  ASSERT_EQ(request.id(), response.id());
+  ASSERT_EQ(request.param(), response.value());
+}
+
+TEST_F(HyperRpcTest, TimeoutFailed)
+{
+  addr_list_[0] = {"127.0.0.1", 28888};
+  TestService::Stub test_service(&hyper_rpc_);
+  TestRequest request;
+  request.set_id(10000);
+  request.set_param("hello");
+  TestResponse response;
+  ASSERT_EQ(hrpc::kTimeout, test_service.Query(request, &response));
+}
+
+TEST_F(HyperRpcTest, RetrySuccess)
+{
+  addr_list_.emplace(addr_list_.begin(), "127.0.0.1", 28888);
   TestService::Stub test_service(&hyper_rpc_);
   TestRequest request;
   request.set_id(10000);
