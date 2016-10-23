@@ -38,6 +38,7 @@ private:
 
 HyperRpc::Impl::Impl(const Options& opt)
   : env_(opt)
+  , hyper_udp_(env_.opt().hudp_options)
   , service_map_(1024)
   , is_initialized_(false)
 {
@@ -112,8 +113,9 @@ void HyperRpc::Impl::OnSendPacket(const Buf& buf, const Addr& addr, void* ctx)
 void HyperRpc::Impl::OnRecvPacket(const Buf& buf, const Addr& addr)
 {
   size_t cur_core_id = ccb::Worker::self()->id();
+  HRPC_ASSERT(cur_core_id < rpc_core_vec_.size());
   size_t dst_core_id = rpc_core_vec_[cur_core_id]->OnRecvPacket(buf, addr);
-  if (dst_core_id != cur_core_id) {
+  if (dst_core_id != cur_core_id && dst_core_id < rpc_core_vec_.size()) {
     // cross thread dispatch
     size_t redirect_buf_len = buf.len();
     void*  redirect_buf_ptr = env_.alloc().Alloc(redirect_buf_len);

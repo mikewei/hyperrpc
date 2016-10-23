@@ -110,10 +110,10 @@ size_t RpcCore::OnRecvPacket(const Buf& buf, const Addr& addr)
     return cur_rpc_core_id;
   }
   if (rpc_header.packet_type() == RpcHeader::REQUEST) {
-    // process REQUEST message
+    // process REQUEST message in current thread
     OnRecvRequestMessage(rpc_header, {rpc_body_ptr, rpc_body_len}, addr);
   } else {
-    // process RESPONSE message
+    // process RESPONSE message in thread the rpc_id belongs
     size_t rpc_core_id_plus_1 = rpc_header.rpc_id() >> kRpcIdSeqPartBits;
     if (rpc_core_id_plus_1 == 0 ||
         rpc_core_id_plus_1 > env_.opt().hudp_options.worker_num) {
