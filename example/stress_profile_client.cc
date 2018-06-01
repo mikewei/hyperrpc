@@ -81,7 +81,7 @@ void StartProfileServiceClient()
 
   // start calling with configured speed
   uint32_t qps = static_cast<uint32_t>(FLAGS_qps);
-  ccb::TokenBucket token_bucket{qps, qps/10, 0};
+  ccb::TokenBucket token_bucket{qps, qps/10, 0, nullptr, false};
   while (true) {
     if (!token_bucket.Get(1)) {
       usleep(1000);
