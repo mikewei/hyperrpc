@@ -112,7 +112,7 @@ void HyperRpc::Impl::OnSendPacket(const Buf& buf, const Addr& addr, void* ctx)
 
 void HyperRpc::Impl::OnRecvPacket(const Buf& buf, const Addr& addr)
 {
-  size_t cur_core_id = ccb::Worker::self()->id();
+  size_t cur_core_id = ccb::WorkerGroup::Worker::self()->id();
   HRPC_ASSERT(cur_core_id < rpc_core_vec_.size());
   size_t dst_core_id = rpc_core_vec_[cur_core_id]->OnRecvPacket(buf, addr);
   if (dst_core_id != cur_core_id && dst_core_id < rpc_core_vec_.size()) {
@@ -120,7 +120,7 @@ void HyperRpc::Impl::OnRecvPacket(const Buf& buf, const Addr& addr)
     size_t redirect_buf_len = buf.len();
     void*  redirect_buf_ptr = env_.alloc().Alloc(redirect_buf_len);
     memcpy(static_cast<char*>(redirect_buf_ptr), buf.ptr(), buf.len());
-    if (!ccb::Worker::self()->worker_group()->PostTask(dst_core_id, [=] {
+    if (!ccb::WorkerGroup::Worker::self()->worker_group()->PostTask(dst_core_id, [=] {
       rpc_core_vec_[dst_core_id]->OnRecvPacket(
                              {redirect_buf_ptr, redirect_buf_len}, addr);
       env_.alloc().Free(redirect_buf_ptr, redirect_buf_len);
@@ -138,11 +138,11 @@ void HyperRpc::Impl::OnSentResult(hudp::Result result, void* ctx)
     // nothing need to do when success
     return;
   }
-  size_t cur_core_id = ccb::Worker::self()->id();
+  size_t cur_core_id = ccb::WorkerGroup::Worker::self()->id();
   size_t dst_core_id = rpc_core_vec_[cur_core_id]->OnSendPacketFailed(ctx);
   if (dst_core_id != cur_core_id) {
     // cross thread dispatch
-    if (!ccb::Worker::self()->worker_group()->PostTask(dst_core_id, [=] {
+    if (!ccb::WorkerGroup::Worker::self()->worker_group()->PostTask(dst_core_id, [=] {
       rpc_core_vec_[dst_core_id]->OnSendPacketFailed(ctx);
     })) {
       // worker-queue overflow
@@ -168,7 +168,7 @@ Result HyperRpc::Impl::CallMethod(
       return kInError;
     }
     // dispatch in current worker-thread
-    size_t rpc_core_id = ccb::Worker::self()->id();
+    size_t rpc_core_id = ccb::WorkerGroup::Worker::self()->id();
     rpc_core_vec_[rpc_core_id]->CallMethod(method, request, response,
                                            std::move(done));
   } else {
@@ -183,7 +183,7 @@ Result HyperRpc::Impl::CallMethod(
     }
     // dispatch to a worker-thread of worker-group
     if (!worker_group->PostTask([this, method, request, response, done] {
-      size_t rpc_core_id = ccb::Worker::self()->id();
+      size_t rpc_core_id = ccb::WorkerGroup::Worker::self()->id();
       rpc_core_vec_[rpc_core_id]->CallMethod(method, request, response,
                                              std::move(done));
     })) {

@@ -1,6 +1,6 @@
 package(default_visibility = ["//visibility:public"])
 
-load("hrpc", "cc_hrpc_proto_library")
+load(":hrpc.bzl", "cc_hrpc_proto_library")
 
 cc_library(
   name = "hyperrpc",

@@ -75,7 +75,11 @@ def _proto_gen_impl(ctx):
     outdir = ctx.var["GENDIR"] + "/" + gen_dir
     if ctx.attr.plugin_options:
       outdir = ",".join(ctx.attr.plugin_options) + ":" + outdir
-    args += ["--plugin=protoc-gen-%s=%s" % (lang, plugin.path)]
+    # By default, bazel will find 'protoc-gen-hrpc_cpp' under 'bazel-out/host/bin/hyperrpc/protoc-gen-hrpc_cpp'
+    # however, the self-defined code generator is compiled into 'bazel-bin/hyperrpc/protoc-gen-hrpc_cpp'
+    # here we make a change to make bazel find 'protoc-gen-hrpc_cpp' at the right place with a little bit hard-coding
+    # user should build like: bazel build hyperrpc:all --define=path=$(pwd)
+    args += ["--plugin=protoc-gen-%s=%s" % (lang, ctx.var["path"] + "/" + ctx.var["BINDIR"] + "/" + "hyperrpc/protoc-gen-hrpc_cpp")]
     args += ["--%s_out=%s" % (lang, outdir)]
 
   if args:
@@ -191,17 +195,17 @@ def cc_hrpc_proto_library(
       outs=outs,
       visibility=["//visibility:public"],
   )
-
   if default_runtime and not default_runtime in cc_libs:
-    cc_libs += [default_runtime]
+      cc_libs2 = cc_libs + [default_runtime]
   if use_hrpc_plugin:
-    cc_libs += ["//hyperrpc:hyperrpc"]
+      cc_libs2 += ["//hyperrpc:hyperrpc"]
 
   native.cc_library(
       name=name,
       srcs=outs,
-      deps=cc_libs + deps,
+      deps=cc_libs2 + deps,
       includes=includes,
       **kargs)
+
 
 
