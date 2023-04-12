@@ -6,7 +6,7 @@ HyperRpc is a rpc framework based on protobuf and [HyperUdp](https://github.com/
 
 ## HowToUse
 
-### Compile
+### 1.Compile
 
 
 #### Prerequisites
@@ -46,10 +46,10 @@ bazel build hyperrpc:all --define=path=$(pwd)
 P.S. 
 - ${path} is used to find protoc-gen-hrpc_cpp at the right place
 - we recommend to use [Bazelisk](https://github.com/bazelbuild/bazelisk/blob/master/README.md) to control bazel version, 'USE_BAZEL_VERSION=0.14.0' is a version that can compile successfully, latest bazel version such as 6.0.0 may complain when compiling with third_party/protobuf mentioned above.
-if you are using a lastest bazel version, maybe you need to solve the compilation problems by your self.
+if you are using a lastest bazel version, maybe you need to solve the compilation problems by yourself.
 
-#### Run
+### 2.Run
 
 Referring to ./test directory for all unittest;
-Referring to ./example directory for a simple hrpc client and hrpc server
 
+Referring to ./example directory for a simple hrpc client and hrpc server
